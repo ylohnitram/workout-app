@@ -25,7 +25,7 @@ export default function WeekPlanner() {
             <SelectContent>
               <SelectItem value="">Žádný trénink</SelectItem>
               {workouts?.map((workout) => (
-                <SelectItem key={workout._id} value={workout._id || ""}>
+                <SelectItem key={workout._id} value={workout._id || ''}>
                   {workout.name}
                 </SelectItem>
               ))}
