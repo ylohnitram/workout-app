@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { WORKOUT_DEFAULTS, getDisplayValue, getSafeValue } from '@/contexts/WorkoutContext'
 
 interface Exercise {
   _id?: string
@@ -36,32 +37,32 @@ interface Exercise {
 
 export default function WorkoutEditor() {
   const { workouts, addWorkout, updateWorkout, deleteWorkout, selectedWorkout, setSelectedWorkout } = useWorkout()
-  const [workoutName, setWorkoutName] = useState("default")
+  const [workoutName, setWorkoutName] = useState(WORKOUT_DEFAULTS.DEFAULT)
   const [newExercise, setNewExercise] = useState<Exercise>({
-    name: "default",
+    name: WORKOUT_DEFAULTS.DEFAULT,
     sets: 0,
     reps: 0,
     weight: 0
   })
 
   const handleAddWorkout = async () => {
-    if (workoutName !== "default") {
+    if (workoutName !== WORKOUT_DEFAULTS.DEFAULT) {
       await addWorkout({
         name: workoutName,
         exercises: []
       })
-      setWorkoutName("default")
+      setWorkoutName(WORKOUT_DEFAULTS.DEFAULT)
     }
   }
 
   const handleAddExercise = async () => {
-    if (selectedWorkout && selectedWorkout._id && newExercise.name !== "default") {
+    if (selectedWorkout && selectedWorkout._id && newExercise.name !== WORKOUT_DEFAULTS.DEFAULT) {
       await updateWorkout(selectedWorkout._id, {
         ...selectedWorkout,
         exercises: [...selectedWorkout.exercises, newExercise]
       })
       setNewExercise({
-        name: "default",
+        name: WORKOUT_DEFAULTS.DEFAULT,
         sets: 0,
         reps: 0,
         weight: 0
@@ -97,8 +98,8 @@ export default function WorkoutEditor() {
           <div className="flex space-x-2">
             <Input
               type="text"
-              value={workoutName === "default" ? "" : workoutName}
-              onChange={(e) => setWorkoutName(e.target.value || "default")}
+              value={getDisplayValue(workoutName)}
+              onChange={(e) => setWorkoutName(getSafeValue(e.target.value))}
               placeholder="Název tréninku"
             />
             <Button onClick={handleAddWorkout}>Přidat trénink</Button>
@@ -114,9 +115,9 @@ export default function WorkoutEditor() {
           <div className="space-y-4">
             <div className="flex space-x-2">
               <Select
-                value={selectedWorkout?._id || "none"}
+                value={selectedWorkout?._id || WORKOUT_DEFAULTS.NONE}
                 onValueChange={(value) => {
-                  const workout = workouts.find(w => w._id === value)
+                  const workout = workouts?.find(w => w._id === value)
                   setSelectedWorkout(workout || null)
                 }}
               >
@@ -124,15 +125,15 @@ export default function WorkoutEditor() {
                   <SelectValue placeholder="Vyberte trénink" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Vyberte trénink</SelectItem>
+                  <SelectItem value={WORKOUT_DEFAULTS.NONE}>Vyberte trénink</SelectItem>
                   {workouts && workouts.length > 0 ? (
                     workouts.map((workout) => (
-                      <SelectItem key={workout._id} value={workout._id || 'default'}>
+                      <SelectItem key={workout._id} value={workout._id || WORKOUT_DEFAULTS.DEFAULT}>
                         {workout.name}
                       </SelectItem>
                     ))
                   ) : (
-                    <SelectItem value="no-workouts" disabled>
+                    <SelectItem value={WORKOUT_DEFAULTS.NO_WORKOUTS} disabled>
                       Žádné tréninky k dispozici
                     </SelectItem>
                   )}
@@ -168,10 +169,10 @@ export default function WorkoutEditor() {
                 <div className="grid grid-cols-4 gap-4">
                   <Input
                     placeholder="Název cviku"
-                    value={newExercise.name === "default" ? "" : newExercise.name}
+                    value={newExercise.name === WORKOUT_DEFAULTS.DEFAULT ? "" : newExercise.name}
                     onChange={(e) => setNewExercise(prev => ({
                       ...prev,
-                      name: e.target.value || "default"
+                      name: e.target.value || WORKOUT_DEFAULTS.DEFAULT
                     }))}
                   />
                   <Input

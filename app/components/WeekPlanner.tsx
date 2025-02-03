@@ -1,6 +1,7 @@
 "use client"
 import { useWorkout } from "@/contexts/WorkoutContext"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { WORKOUT_DEFAULTS } from '@/contexts/WorkoutContext'
 
 const DAYS = ["Pondělí", "Úterý", "Středa", "Čtvrtek", "Pátek", "Sobota", "Neděle"]
 
@@ -13,7 +14,7 @@ export default function WeekPlanner() {
         <div key={day} className="flex items-center gap-4">
           <span className="w-24 font-medium">{day}</span>
           <Select
-            value={selectedWorkout?._id || "none"}
+            value={selectedWorkout?._id || WORKOUT_DEFAULTS.NONE}
             onValueChange={(value) => {
               const workout = workouts.find((w) => w._id === value)
               setSelectedWorkout(workout || null)
@@ -23,15 +24,21 @@ export default function WeekPlanner() {
               <SelectValue placeholder="Vyberte trénink" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">Žádný trénink</SelectItem>
+              <SelectItem value={WORKOUT_DEFAULTS.NONE}>Žádný trénink</SelectItem>
               {workouts && workouts.length > 0 ? (
                 workouts.map((workout) => (
-                  <SelectItem key={workout._id} value={workout._id || 'default'}>
+                  <SelectItem 
+                    key={workout._id} 
+                    value={workout._id || WORKOUT_DEFAULTS.DEFAULT}
+                  >
                     {workout.name}
                   </SelectItem>
                 ))
               ) : (
-                <SelectItem value="no-workouts" disabled>
+                <SelectItem 
+                  value={WORKOUT_DEFAULTS.NO_WORKOUTS} 
+                  disabled
+                >
                   Žádné tréninky k dispozici
                 </SelectItem>
               )}

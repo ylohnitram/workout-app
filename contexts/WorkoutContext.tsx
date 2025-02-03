@@ -3,18 +3,25 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 
-interface Exercise {
+// Definujeme konstanty pro speciální hodnoty
+export const WORKOUT_DEFAULTS = {
+  NONE: 'none',
+  DEFAULT: 'default',
+  NO_WORKOUTS: 'no-workouts'
+} as const;
+
+export interface Exercise {
+  _id?: string;
   name: string;
   sets: number;
   reps: number;
   weight: number;
 }
 
-interface Workout {
+export interface Workout {
   _id?: string;
   name: string;
   exercises: Exercise[];
-  date?: Date;
 }
 
 interface WorkoutContextType {
@@ -140,4 +147,14 @@ export function useWorkout() {
   }
   return context;
 }
+
+// Pomocné funkce pro práci s hodnotami
+export const isEmptyValue = (value: string) => 
+  !value || value === WORKOUT_DEFAULTS.NONE || value === WORKOUT_DEFAULTS.DEFAULT;
+
+export const getDisplayValue = (value: string) => 
+  isEmptyValue(value) ? '' : value;
+
+export const getSafeValue = (value: string) => 
+  value || WORKOUT_DEFAULTS.DEFAULT;
 
