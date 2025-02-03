@@ -59,10 +59,13 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       
       if (response.ok) {
         const data = await response.json();
-        setWorkouts(data);
+        setWorkouts(Array.isArray(data.data) ? data.data : []);
+      } else {
+        setWorkouts([]);
       }
     } catch (error) {
       console.error('Error fetching workouts:', error);
+      setWorkouts([]);
     }
   };
 

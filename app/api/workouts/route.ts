@@ -35,15 +35,23 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   try {
-    await connectDB();
-    const workouts = await Workout.find()
-      .sort({ date: -1 });
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ data: [] }, { status: 401 });
+    }
 
-    return NextResponse.json({ data: workouts });
+    const token = authHeader.split('Bearer ')[1];
+    const decodedToken = await auth.verifyIdToken(token);
+    const userId = decodedToken.uid;
+
+    await connectDB();
+    
+    const workouts = await Workout.find({ userId }).sort({ date: -1 });
+    return NextResponse.json({ data: workouts || [] });
   } catch (error) {
     console.error('Workout fetch error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch workouts' },
+      { data: [], error: 'Failed to fetch workouts' },
       { status: 500 }
     );
   }
