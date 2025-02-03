@@ -35,18 +35,8 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const token = authHeader.split('Bearer ')[1];
-    const decodedToken = await auth.verifyIdToken(token);
-    const userId = decodedToken.uid;
-
     await connectDB();
-    
-    const workouts = await Workout.find({ userId })
+    const workouts = await Workout.find()
       .sort({ date: -1 });
 
     return NextResponse.json({ data: workouts });
