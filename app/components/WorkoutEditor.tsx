@@ -113,21 +113,25 @@ export default function WorkoutEditor() {
         <CardContent>
           <div className="space-y-4">
             <div className="flex space-x-2">
-              <select
-                className="w-full p-2 border rounded"
+              <Select
                 value={selectedWorkout?._id || ""}
-                onChange={(e) => {
-                  const workout = workouts.find(w => w._id === e.target.value)
+                onValueChange={(value) => {
+                  const workout = workouts.find(w => w._id === value)
                   setSelectedWorkout(workout || null)
                 }}
               >
-                <option value="">Vyberte trénink</option>
-                {workouts.map((workout) => (
-                  <option key={workout._id} value={workout._id}>
-                    {workout.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Vyberte trénink" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Vyberte trénink</SelectItem>
+                  {workouts.map((workout) => (
+                    <SelectItem key={workout._id} value={workout._id || 'default'}>
+                      {workout.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               
               {selectedWorkout && (
                 <AlertDialog>
