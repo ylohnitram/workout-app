@@ -23,7 +23,7 @@ export default function WeekPlanner() {
               <SelectValue placeholder="Vyberte trénink" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Žádný trénink</SelectItem>
+              <SelectItem value="none">Žádný trénink</SelectItem>
               {workouts?.map((workout) => (
                 <SelectItem key={workout._id} value={workout._id || ''}>
                   {workout.name}
