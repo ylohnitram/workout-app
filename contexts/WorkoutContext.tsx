@@ -1,232 +1,142 @@
 "use client"
 
-import type React from "react"
-import { createContext, useState, useContext, useEffect } from "react"
-import { useAuth } from "./AuthContext"
-import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, query } from "firebase/firestore"
-import { db } from "../lib/firebase"
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
 
-type Exercise = {
-  id: string
-  name: string
-  sets: number
-  reps: number
+interface Exercise {
+  name: string;
+  sets: number;
+  reps: number;
+  weight: number;
 }
 
-type WorkoutExercise = Exercise & {
-  completedSets: number
+interface Workout {
+  _id?: string;
+  name: string;
+  exercises: Exercise[];
+  date?: Date;
 }
 
-type WorkoutPhase = {
-  name: string
-  exerciseIds: string[]
+interface WorkoutContextType {
+  workouts: Workout[];
+  addWorkout: (workout: Workout) => Promise<void>;
+  updateWorkout: (id: string, workout: Workout) => Promise<void>;
+  deleteWorkout: (id: string) => Promise<void>;
+  selectedWorkout: Workout | null;
+  setSelectedWorkout: (workout: Workout | null) => void;
 }
 
-type Workout = {
-  id: string
-  name: string
-  phases: {
-    warmup: WorkoutPhase
-    main: WorkoutPhase
-    cooldown: WorkoutPhase
-  }
-}
+const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
 
-type ActiveWorkout = {
-  workoutId: string
-  exercises: WorkoutExercise[]
-}
+export function WorkoutProvider({ children }: { children: React.ReactNode }) {
+  const [workouts, setWorkouts] = useState<Workout[]>([]);
+  const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
+  const { user } = useAuth();
 
-type WeekPlan = {
-  [key: string]: string // day: workoutId
-}
-
-type WorkoutContextType = {
-  exercises: Exercise[]
-  workouts: Workout[]
-  weekPlan: WeekPlan
-  activeWorkout: ActiveWorkout | null
-  addExercise: (exercise: Omit<Exercise, "id">) => void
-  updateExercise: (exercise: Exercise) => void
-  deleteExercise: (exerciseId: string) => void
-  addWorkout: (workout: Omit<Workout, "id">) => void
-  updateWorkout: (workout: Workout) => void
-  deleteWorkout: (workoutId: string) => void
-  updateWeekPlan: (day: string, workoutId: string) => void
-  startWorkout: (workoutId: string) => void
-  completeSet: (exerciseId: string) => void
-  resetWorkout: () => void
-  removeExerciseFromWorkout: (workoutId: string, exerciseId: string) => void
-}
-
-const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined)
-
-export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [exercises, setExercises] = useState<Exercise[]>([])
-  const [workouts, setWorkouts] = useState<Workout[]>([])
-  const [weekPlan, setWeekPlan] = useState<WeekPlan>({})
-  const [activeWorkout, setActiveWorkout] = useState<ActiveWorkout | null>(null)
-  const { user } = useAuth()
-
+  // Načtení workoutů při přihlášení
   useEffect(() => {
-    if (!user) return
-
-    const exercisesQuery = query(collection(db, `users/${user.uid}/exercises`))
-    const unsubscribeExercises = onSnapshot(exercisesQuery, (snapshot) => {
-      const exercisesData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Exercise)
-      setExercises(exercisesData)
-    })
-
-    const workoutsQuery = query(collection(db, `users/${user.uid}/workouts`))
-    const unsubscribeWorkouts = onSnapshot(workoutsQuery, (snapshot) => {
-      const workoutsData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Workout)
-      setWorkouts(workoutsData)
-    })
-
-    const weekPlanRef = doc(db, `users/${user.uid}/weekPlan/current`)
-    const unsubscribeWeekPlan = onSnapshot(weekPlanRef, (doc) => {
-      if (doc.exists()) {
-        setWeekPlan(doc.data() as WeekPlan)
-      }
-    })
-
-    return () => {
-      unsubscribeExercises()
-      unsubscribeWorkouts()
-      unsubscribeWeekPlan()
+    if (user) {
+      fetchWorkouts();
     }
-  }, [user])
+  }, [user]);
 
-  const addExercise = async (exercise: Omit<Exercise, "id">) => {
-    if (!user) return
-    const newExerciseRef = doc(collection(db, `users/${user.uid}/exercises`))
-    await setDoc(newExerciseRef, exercise)
-  }
-
-  const updateExercise = async (updatedExercise: Exercise) => {
-    if (!user) return
-    const exerciseRef = doc(db, `users/${user.uid}/exercises/${updatedExercise.id}`)
-    await updateDoc(exerciseRef, updatedExercise)
-  }
-
-  const deleteExercise = async (exerciseId: string) => {
-    if (!user) return
-    const exerciseRef = doc(db, `users/${user.uid}/exercises/${exerciseId}`)
-    await deleteDoc(exerciseRef)
-  }
-
-  const addWorkout = async (workout: Omit<Workout, "id">) => {
-    if (!user) return
-    const newWorkoutRef = doc(collection(db, `users/${user.uid}/workouts`))
-    await setDoc(newWorkoutRef, workout)
-  }
-
-  const updateWorkout = async (updatedWorkout: Workout) => {
-    if (!user) return
-    const workoutRef = doc(db, `users/${user.uid}/workouts/${updatedWorkout.id}`)
-    await updateDoc(workoutRef, updatedWorkout)
-  }
-
-  const deleteWorkout = async (workoutId: string) => {
-    if (!user) return
-    const workoutRef = doc(db, `users/${user.uid}/workouts/${workoutId}`)
-    await deleteDoc(workoutRef)
-  }
-
-  const updateWeekPlan = async (day: string, workoutId: string) => {
-    if (!user) return
-    const weekPlanRef = doc(db, `users/${user.uid}/weekPlan/current`)
-    await setDoc(weekPlanRef, { [day]: workoutId }, { merge: true })
-  }
-
-  const startWorkout = (workoutId: string) => {
-    const workout = workouts.find((w) => w.id === workoutId)
-    if (workout) {
-      const allExerciseIds = [
-        ...workout.phases.warmup.exerciseIds,
-        ...workout.phases.main.exerciseIds,
-        ...workout.phases.cooldown.exerciseIds,
-      ]
-      const workoutExercises: WorkoutExercise[] = allExerciseIds.map((id) => {
-        const exercise = exercises.find((e) => e.id === id)
-        return { ...exercise!, completedSets: 0 }
-      })
-      setActiveWorkout({ workoutId, exercises: workoutExercises })
-    }
-  }
-
-  const completeSet = (exerciseId: string) => {
-    if (activeWorkout) {
-      setActiveWorkout({
-        ...activeWorkout,
-        exercises: activeWorkout.exercises.map((e) =>
-          e.id === exerciseId && e.completedSets < e.sets ? { ...e, completedSets: e.completedSets + 1 } : e,
-        ),
-      })
-    }
-  }
-
-  const resetWorkout = () => {
-    setActiveWorkout(null)
-  }
-
-  const removeExerciseFromWorkout = (workoutId: string, exerciseId: string) => {
-    setWorkouts(
-      workouts.map((workout) => {
-        if (workout.id === workoutId) {
-          return {
-            ...workout,
-            phases: {
-              warmup: {
-                ...workout.phases.warmup,
-                exerciseIds: workout.phases.warmup.exerciseIds.filter((id) => id !== exerciseId),
-              },
-              main: {
-                ...workout.phases.main,
-                exerciseIds: workout.phases.main.exerciseIds.filter((id) => id !== exerciseId),
-              },
-              cooldown: {
-                ...workout.phases.cooldown,
-                exerciseIds: workout.phases.cooldown.exerciseIds.filter((id) => id !== exerciseId),
-              },
-            },
-          }
+  const fetchWorkouts = async () => {
+    try {
+      const token = await user?.getIdToken();
+      const response = await fetch('/api/workouts', {
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-        return workout
-      }),
-    )
-  }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setWorkouts(data);
+      }
+    } catch (error) {
+      console.error('Error fetching workouts:', error);
+    }
+  };
+
+  const addWorkout = async (workout: Workout) => {
+    try {
+      const token = await user?.getIdToken();
+      const response = await fetch('/api/workouts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(workout),
+      });
+
+      if (response.ok) {
+        await fetchWorkouts(); // Znovu načteme všechny workouty
+      }
+    } catch (error) {
+      console.error('Error adding workout:', error);
+    }
+  };
+
+  const updateWorkout = async (id: string, workout: Workout) => {
+    try {
+      const token = await user?.getIdToken();
+      const response = await fetch(`/api/workouts/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(workout),
+      });
+
+      if (response.ok) {
+        await fetchWorkouts();
+      }
+    } catch (error) {
+      console.error('Error updating workout:', error);
+    }
+  };
+
+  const deleteWorkout = async (id: string) => {
+    try {
+      const token = await user?.getIdToken();
+      const response = await fetch(`/api/workouts/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+      });
+
+      if (response.ok) {
+        await fetchWorkouts();
+      }
+    } catch (error) {
+      console.error('Error deleting workout:', error);
+    }
+  };
 
   return (
     <WorkoutContext.Provider
       value={{
-        exercises,
         workouts,
-        weekPlan,
-        activeWorkout,
-        addExercise,
-        updateExercise,
-        deleteExercise,
         addWorkout,
         updateWorkout,
         deleteWorkout,
-        updateWeekPlan,
-        startWorkout,
-        completeSet,
-        resetWorkout,
-        removeExerciseFromWorkout,
+        selectedWorkout,
+        setSelectedWorkout,
       }}
     >
       {children}
     </WorkoutContext.Provider>
-  )
+  );
 }
 
-export const useWorkout = () => {
-  const context = useContext(WorkoutContext)
+export function useWorkout() {
+  const context = useContext(WorkoutContext);
   if (context === undefined) {
-    throw new Error("useWorkout must be used within a WorkoutProvider")
+    throw new Error('useWorkout must be used within a WorkoutProvider');
   }
-  return context
+  return context;
 }
 

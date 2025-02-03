@@ -41,4 +41,4 @@ export async function connectDB(): Promise<Connection> {
   }
 
   return cached.conn;
-}
+} 
