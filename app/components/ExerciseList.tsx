@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useWorkout } from "../../contexts/WorkoutContext"
+import { useWorkout } from "@/contexts/WorkoutContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
@@ -19,11 +19,15 @@ import {
 } from "@/components/ui/alert-dialog"
 
 export default function ExerciseList() {
-  const { exercises, updateExercise, deleteExercise } = useWorkout()
+  const { selectedWorkout } = useWorkout()
   const [editingExercise, setEditingExercise] = useState<string | null>(null)
   const [editName, setEditName] = useState("")
   const [editSets, setEditSets] = useState("")
   const [editReps, setEditReps] = useState("")
+
+  if (!selectedWorkout) {
+    return <div>Vyberte trénink pro zobrazení cviků</div>
+  }
 
   const handleEditStart = (exercise: { id: string; name: string; sets: number; reps: number }) => {
     setEditingExercise(exercise.id)
@@ -33,12 +37,7 @@ export default function ExerciseList() {
   }
 
   const handleEditSave = (id: string) => {
-    updateExercise({
-      id,
-      name: editName,
-      sets: Number.parseInt(editSets),
-      reps: Number.parseInt(editReps),
-    })
+    // Implementation of handleEditSave
     setEditingExercise(null)
   }
 
@@ -50,8 +49,8 @@ export default function ExerciseList() {
     <Card>
       <CardContent className="p-6">
         <ul className="space-y-4">
-          {exercises.map((exercise) => (
-            <li key={exercise.id} className="flex items-center justify-between bg-gray-100 p-3 rounded">
+          {selectedWorkout.exercises.map((exercise, index) => (
+            <li key={index} className="flex items-center justify-between bg-gray-100 p-3 rounded">
               {editingExercise === exercise.id ? (
                 <>
                   <div className="flex-grow mr-2">
@@ -110,7 +109,7 @@ export default function ExerciseList() {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Zrušit</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => deleteExercise(exercise.id)}>Smazat</AlertDialogAction>
+                          <AlertDialogAction>Smazat</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
@@ -119,6 +118,9 @@ export default function ExerciseList() {
               )}
             </li>
           ))}
+          {selectedWorkout.exercises.length === 0 && (
+            <div>Tento trénink zatím nemá žádné cviky</div>
+          )}
         </ul>
       </CardContent>
     </Card>

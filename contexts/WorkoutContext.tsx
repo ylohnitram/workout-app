@@ -33,10 +33,11 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
   const { user } = useAuth();
 
-  // Načtení workoutů při přihlášení
   useEffect(() => {
     if (user) {
       fetchWorkouts();
+    } else {
+      setWorkouts([]);
     }
   }, [user]);
 
