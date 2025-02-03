@@ -13,7 +13,7 @@ export default function WeekPlanner() {
         <div key={day} className="flex items-center gap-4">
           <span className="w-24 font-medium">{day}</span>
           <Select
-            value={selectedWorkout?._id || ""}
+            value={selectedWorkout?._id || "none"}
             onValueChange={(value) => {
               const workout = workouts.find((w) => w._id === value)
               setSelectedWorkout(workout || null)
@@ -25,7 +25,7 @@ export default function WeekPlanner() {
             <SelectContent>
               <SelectItem value="none">Žádný trénink</SelectItem>
               {workouts?.map((workout) => (
-                <SelectItem key={workout._id} value={workout._id || ''}>
+                <SelectItem key={workout._id} value={workout._id || 'default'}>
                   {workout.name}
                 </SelectItem>
               ))}
