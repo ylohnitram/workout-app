@@ -36,7 +36,7 @@ interface Exercise {
 }
 
 export default function WorkoutEditor() {
-  const { workouts, addWorkout, updateWorkout, deleteWorkout, selectedWorkout, setSelectedWorkout } = useWorkout()
+  const { workouts = [], addWorkout, updateWorkout, deleteWorkout, selectedWorkout, setSelectedWorkout } = useWorkout()
   const [workoutName, setWorkoutName] = useState(WORKOUT_DEFAULTS.DEFAULT)
   const [newExercise, setNewExercise] = useState<Exercise>({
     name: WORKOUT_DEFAULTS.DEFAULT,
@@ -44,6 +44,9 @@ export default function WorkoutEditor() {
     reps: 0,
     weight: 0
   })
+
+  // Zajistíme, že workouts je vždy pole
+  const safeWorkouts = Array.isArray(workouts) ? workouts : []
 
   const handleAddWorkout = async () => {
     if (workoutName !== WORKOUT_DEFAULTS.DEFAULT) {
@@ -117,7 +120,7 @@ export default function WorkoutEditor() {
               <Select
                 value={selectedWorkout?._id || WORKOUT_DEFAULTS.NONE}
                 onValueChange={(value) => {
-                  const workout = workouts?.find(w => w._id === value)
+                  const workout = safeWorkouts.find(w => w._id === value)
                   setSelectedWorkout(workout || null)
                 }}
               >
@@ -126,8 +129,8 @@ export default function WorkoutEditor() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={WORKOUT_DEFAULTS.NONE}>Vyberte trénink</SelectItem>
-                  {workouts && workouts.length > 0 ? (
-                    workouts.map((workout) => (
+                  {safeWorkouts.length > 0 ? (
+                    safeWorkouts.map((workout) => (
                       <SelectItem key={workout._id} value={workout._id || WORKOUT_DEFAULTS.DEFAULT}>
                         {workout.name}
                       </SelectItem>

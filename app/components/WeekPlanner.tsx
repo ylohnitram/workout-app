@@ -8,6 +8,9 @@ const DAYS = ["Pondělí", "Úterý", "Středa", "Čtvrtek", "Pátek", "Sobota",
 export default function WeekPlanner() {
   const { workouts = [], selectedWorkout, setSelectedWorkout } = useWorkout()
 
+  // Zajistíme, že workouts je vždy pole
+  const safeWorkouts = Array.isArray(workouts) ? workouts : []
+
   return (
     <div className="grid gap-4">
       {DAYS.map((day) => (
@@ -16,7 +19,7 @@ export default function WeekPlanner() {
           <Select
             value={selectedWorkout?._id || WORKOUT_DEFAULTS.NONE}
             onValueChange={(value) => {
-              const workout = workouts.find((w) => w._id === value)
+              const workout = safeWorkouts.find((w) => w._id === value)
               setSelectedWorkout(workout || null)
             }}
           >
@@ -25,8 +28,8 @@ export default function WeekPlanner() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={WORKOUT_DEFAULTS.NONE}>Žádný trénink</SelectItem>
-              {workouts && workouts.length > 0 ? (
-                workouts.map((workout) => (
+              {safeWorkouts.length > 0 ? (
+                safeWorkouts.map((workout) => (
                   <SelectItem 
                     key={workout._id} 
                     value={workout._id || WORKOUT_DEFAULTS.DEFAULT}

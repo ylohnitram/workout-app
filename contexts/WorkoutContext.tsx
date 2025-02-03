@@ -41,28 +41,41 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (user) {
-      fetchWorkouts();
-    } else {
+    if (!user) {
       setWorkouts([]);
+      setSelectedWorkout(null);
+    } else {
+      fetchWorkouts();
     }
   }, [user]);
 
   const fetchWorkouts = async () => {
+    if (!user) {
+      setWorkouts([]);
+      return;
+    }
+
     try {
-      const token = await user?.getIdToken();
+      const token = await user.getIdToken();
       const response = await fetch('/api/workouts', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
-      if (response.ok) {
-        const data = await response.json();
-        setWorkouts(Array.isArray(data.data) ? data.data : []);
-      } else {
+      if (!response.ok) {
         setWorkouts([]);
+        return;
       }
+
+      const result = await response.json();
+      const workoutData = result.data || [];
+      if (!Array.isArray(workoutData)) {
+        setWorkouts([]);
+        return;
+      }
+
+      setWorkouts(workoutData);
     } catch (error) {
       console.error('Error fetching workouts:', error);
       setWorkouts([]);
