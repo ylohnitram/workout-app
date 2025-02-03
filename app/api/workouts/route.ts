@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Workout } from '@/models/workout';
 import { connectDB } from '@/lib/mongodb';
-import { auth } from '@/lib/firebase';
+import { auth } from '@/lib/firebase-admin';
 
 export async function POST(req: Request) {
   try {
@@ -49,9 +49,9 @@ export async function GET(req: Request) {
     const workouts = await Workout.find({ userId })
       .sort({ date: -1 });
 
-    return NextResponse.json(workouts);
+    return NextResponse.json({ data: workouts });
   } catch (error) {
-    console.error('Error fetching workouts:', error);
+    console.error('Workout fetch error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch workouts' },
       { status: 500 }

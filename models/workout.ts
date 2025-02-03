@@ -1,24 +1,53 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema, Document } from 'mongoose';
 
-const workoutSchema = new mongoose.Schema({
+export interface IWorkout extends Document {
+  userId: string;
+  date: Date;
+  exercises: Array<{
+    name: string;
+    sets: Array<{
+      weight: number;
+      reps: number;
+    }>;
+  }>;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const WorkoutSchema = new Schema<IWorkout>({
   userId: {
     type: String,
     required: true,
+    index: true
   },
-  name: {
-    type: String,
-    required: true,
-  },
-  exercises: [{
-    name: String,
-    sets: Number,
-    reps: Number,
-    weight: Number,
-  }],
   date: {
     type: Date,
-    default: Date.now,
+    required: true,
+    default: Date.now
+  },
+  exercises: [{
+    name: {
+      type: String,
+      required: true
+    },
+    sets: [{
+      weight: {
+        type: Number,
+        required: true
+      },
+      reps: {
+        type: Number,
+        required: true
+      }
+    }]
+  }],
+  notes: {
+    type: String
   }
+}, {
+  timestamps: true
 });
 
-export const Workout = mongoose.models.Workout || mongoose.model('Workout', workoutSchema); 
+// Předejít chybě při hot-reloadu v development módu
+export const Workout = mongoose.models.Workout || mongoose.model<IWorkout>('Workout', WorkoutSchema); 
