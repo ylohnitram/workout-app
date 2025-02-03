@@ -24,11 +24,17 @@ export default function WeekPlanner() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">Žádný trénink</SelectItem>
-              {workouts?.map((workout) => (
-                <SelectItem key={workout._id} value={workout._id || 'default'}>
-                  {workout.name}
+              {workouts && workouts.length > 0 ? (
+                workouts.map((workout) => (
+                  <SelectItem key={workout._id} value={workout._id || 'default'}>
+                    {workout.name}
+                  </SelectItem>
+                ))
+              ) : (
+                <SelectItem value="no-workouts" disabled>
+                  Žádné tréninky k dispozici
                 </SelectItem>
-              ))}
+              )}
             </SelectContent>
           </Select>
         </div>
