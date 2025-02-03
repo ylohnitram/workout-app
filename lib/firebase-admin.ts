@@ -30,4 +30,4 @@ if (!apps.length) {
   });
 }
 
-export const auth = getAuth(); 
+export const auth = getAuth();
