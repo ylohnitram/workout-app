@@ -50,26 +50,36 @@ export default function WorkoutEditor() {
 
   const handleAddWorkout = async () => {
     if (workoutName !== WORKOUT_DEFAULTS.DEFAULT) {
-      await addWorkout({
-        name: workoutName,
-        exercises: []
-      })
-      setWorkoutName(WORKOUT_DEFAULTS.DEFAULT)
+      try {
+        await addWorkout({
+          name: workoutName,
+          exercises: []
+        });
+        // Resetujeme až po úspěšném přidání
+        setWorkoutName(WORKOUT_DEFAULTS.DEFAULT);
+      } catch (error) {
+        console.error('Failed to add workout:', error);
+      }
     }
   }
 
   const handleAddExercise = async () => {
     if (selectedWorkout && selectedWorkout._id && newExercise.name !== WORKOUT_DEFAULTS.DEFAULT) {
-      await updateWorkout(selectedWorkout._id, {
-        ...selectedWorkout,
-        exercises: [...selectedWorkout.exercises, newExercise]
-      })
-      setNewExercise({
-        name: WORKOUT_DEFAULTS.DEFAULT,
-        sets: 0,
-        reps: 0,
-        weight: 0
-      })
+      try {
+        await updateWorkout(selectedWorkout._id, {
+          ...selectedWorkout,
+          exercises: [...selectedWorkout.exercises, newExercise]
+        });
+        // Resetujeme až po úspěšném přidání
+        setNewExercise({
+          name: WORKOUT_DEFAULTS.DEFAULT,
+          sets: 0,
+          reps: 0,
+          weight: 0
+        });
+      } catch (error) {
+        console.error('Failed to add exercise:', error);
+      }
     }
   }
 
