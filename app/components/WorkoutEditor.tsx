@@ -97,8 +97,8 @@ export default function WorkoutEditor() {
           <div className="flex space-x-2">
             <Input
               type="text"
-              value={workoutName}
-              onChange={(e) => setWorkoutName(e.target.value)}
+              value={workoutName === "default" ? "" : workoutName}
+              onChange={(e) => setWorkoutName(e.target.value || "default")}
               placeholder="Název tréninku"
             />
             <Button onClick={handleAddWorkout}>Přidat trénink</Button>
@@ -168,8 +168,11 @@ export default function WorkoutEditor() {
                 <div className="grid grid-cols-4 gap-4">
                   <Input
                     placeholder="Název cviku"
-                    value={newExercise.name}
-                    onChange={(e) => setNewExercise(prev => ({ ...prev, name: e.target.value }))}
+                    value={newExercise.name === "default" ? "" : newExercise.name}
+                    onChange={(e) => setNewExercise(prev => ({
+                      ...prev,
+                      name: e.target.value || "default"
+                    }))}
                   />
                   <Input
                     type="number"

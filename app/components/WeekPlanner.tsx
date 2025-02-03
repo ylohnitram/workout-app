@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 const DAYS = ["Pondělí", "Úterý", "Středa", "Čtvrtek", "Pátek", "Sobota", "Neděle"]
 
 export default function WeekPlanner() {
-  const { workouts, selectedWorkout, setSelectedWorkout } = useWorkout()
+  const { workouts = [], selectedWorkout, setSelectedWorkout } = useWorkout()
 
   return (
     <div className="grid gap-4">
