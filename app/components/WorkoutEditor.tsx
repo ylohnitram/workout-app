@@ -36,32 +36,32 @@ interface Exercise {
 
 export default function WorkoutEditor() {
   const { workouts, addWorkout, updateWorkout, deleteWorkout, selectedWorkout, setSelectedWorkout } = useWorkout()
-  const [workoutName, setWorkoutName] = useState("")
+  const [workoutName, setWorkoutName] = useState("default")
   const [newExercise, setNewExercise] = useState<Exercise>({
-    name: "",
+    name: "default",
     sets: 0,
     reps: 0,
     weight: 0
   })
 
   const handleAddWorkout = async () => {
-    if (workoutName) {
+    if (workoutName !== "default") {
       await addWorkout({
         name: workoutName,
         exercises: []
       })
-      setWorkoutName("")
+      setWorkoutName("default")
     }
   }
 
   const handleAddExercise = async () => {
-    if (selectedWorkout && selectedWorkout._id && newExercise.name) {
+    if (selectedWorkout && selectedWorkout._id && newExercise.name !== "default") {
       await updateWorkout(selectedWorkout._id, {
         ...selectedWorkout,
         exercises: [...selectedWorkout.exercises, newExercise]
       })
       setNewExercise({
-        name: "",
+        name: "default",
         sets: 0,
         reps: 0,
         weight: 0
@@ -114,7 +114,7 @@ export default function WorkoutEditor() {
           <div className="space-y-4">
             <div className="flex space-x-2">
               <Select
-                value={selectedWorkout?._id || ""}
+                value={selectedWorkout?._id || "none"}
                 onValueChange={(value) => {
                   const workout = workouts.find(w => w._id === value)
                   setSelectedWorkout(workout || null)
