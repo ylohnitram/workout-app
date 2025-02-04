@@ -2,10 +2,13 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { auth } from '@/lib/firebase-admin'
 
-// Seznam admin emailů
 const ADMIN_EMAILS = [
-  'mholy1983@gmail.com',  // zde přidejte vaše admin emaily
+  'mholy1983@gmail.com'
 ]
+
+export async function checkIsAdmin(email: string) {
+  return ADMIN_EMAILS.includes(email);
+}
 
 export async function adminMiddleware(request: NextRequest) {
   try {
