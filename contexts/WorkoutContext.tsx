@@ -50,10 +50,23 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         }
       });
 
-      if (!response.ok) return;
+      if (!response.ok) {
+        console.error('Failed to fetch workouts:', response.status);
+        setWorkouts([]);
+        return;
+      }
 
-      const data = await response.json();
-      setWorkouts(data || []);
+      const result = await response.json();
+      console.log('Fetched workouts:', result);
+
+      if (Array.isArray(result)) {
+        setWorkouts(result);
+      } else if (Array.isArray(result.data)) {
+        setWorkouts(result.data);
+      } else {
+        console.error('Unexpected data format:', result);
+        setWorkouts([]);
+      }
     } catch (error) {
       console.error('Error fetching workouts:', error);
       setWorkouts([]);
@@ -61,7 +74,12 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    fetchWorkouts();
+    if (!user) {
+      setWorkouts([]);
+      setSelectedWorkout(null);
+    } else {
+      fetchWorkouts();
+    }
   }, [user]);
 
   const addWorkout = async (workout: Workout) => {
@@ -69,6 +87,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const token = await user.getIdToken();
+      console.log('Sending workout:', workout);
+
       const response = await fetch('/api/workouts', {
         method: 'POST',
         headers: {
@@ -78,9 +98,16 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify(workout),
       });
 
-      if (!response.ok) return;
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Server error:', response.status, errorText);
+        return;
+      }
 
-      fetchWorkouts();
+      const result = await response.json();
+      console.log('Server response:', result);
+
+      await fetchWorkouts();
     } catch (error) {
       console.error('Error adding workout:', error);
     }
@@ -100,9 +127,13 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify(workout),
       });
 
-      if (!response.ok) return;
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Server error:', response.status, errorText);
+        return;
+      }
 
-      fetchWorkouts();
+      await fetchWorkouts();
     } catch (error) {
       console.error('Error updating workout:', error);
     }
@@ -120,9 +151,13 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         },
       });
 
-      if (!response.ok) return;
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Server error:', response.status, errorText);
+        return;
+      }
 
-      fetchWorkouts();
+      await fetchWorkouts();
     } catch (error) {
       console.error('Error deleting workout:', error);
     }
