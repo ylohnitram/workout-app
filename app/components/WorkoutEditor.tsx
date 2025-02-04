@@ -37,7 +37,6 @@ export default function WorkoutEditor() {
     weight: 0
   })
 
-  // Zajistíme, že workouts je vždy pole
   const safeWorkouts = Array.isArray(workouts) ? workouts : []
 
   const handleAddWorkout = async () => {
@@ -132,7 +131,7 @@ export default function WorkoutEditor() {
           <div className="space-y-4">
             <div className="flex space-x-2">
               <Select
-                value={selectedWorkout?._id || ""}
+                value={selectedWorkout?._id || WORKOUT_DEFAULTS.NONE}
                 onValueChange={(value) => {
                   const workout = safeWorkouts.find(w => w._id === value)
                   setSelectedWorkout(workout || null)
@@ -142,9 +141,9 @@ export default function WorkoutEditor() {
                   <SelectValue placeholder="Vyberte trénink" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Vyberte trénink</SelectItem>
+                  <SelectItem value={WORKOUT_DEFAULTS.NONE}>Vyberte trénink</SelectItem>
                   {safeWorkouts.map((workout) => (
-                    <SelectItem key={workout._id} value={workout._id || ""}>
+                    <SelectItem key={workout._id} value={workout._id || WORKOUT_DEFAULTS.DEFAULT}>
                       {workout.name}
                     </SelectItem>
                   ))}
