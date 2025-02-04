@@ -37,21 +37,27 @@ export default function WorkoutEditor() {
     weight: 0
   })
 
+  // Zajistíme, že workouts je vždy pole
   const safeWorkouts = Array.isArray(workouts) ? workouts : []
 
   const handleAddWorkout = async () => {
     const name = workoutName.trim()
-    if (!name) return
+    if (!name) {
+      console.warn('Empty workout name');
+      return;
+    }
+
+    const newWorkout = {
+      name,
+      exercises: []
+    };
 
     try {
-      console.log('Creating new workout:', { name, exercises: [] })
-      await addWorkout({
-        name,
-        exercises: []
-      })
-      setWorkoutName("")
+      console.log('Creating new workout:', JSON.stringify(newWorkout, null, 2));
+      await addWorkout(newWorkout);
+      setWorkoutName("");
     } catch (error) {
-      console.error('Failed to add workout:', error)
+      console.error('Failed to add workout:', error);
     }
   }
 
@@ -131,7 +137,7 @@ export default function WorkoutEditor() {
           <div className="space-y-4">
             <div className="flex space-x-2">
               <Select
-                value={selectedWorkout?._id || WORKOUT_DEFAULTS.NONE}
+                value={selectedWorkout?._id || ""}
                 onValueChange={(value) => {
                   const workout = safeWorkouts.find(w => w._id === value)
                   setSelectedWorkout(workout || null)
@@ -141,9 +147,9 @@ export default function WorkoutEditor() {
                   <SelectValue placeholder="Vyberte trénink" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={WORKOUT_DEFAULTS.NONE}>Vyberte trénink</SelectItem>
+                  <SelectItem value="">Vyberte trénink</SelectItem>
                   {safeWorkouts.map((workout) => (
-                    <SelectItem key={workout._id} value={workout._id || WORKOUT_DEFAULTS.DEFAULT}>
+                    <SelectItem key={workout._id} value={workout._id || ""}>
                       {workout.name}
                     </SelectItem>
                   ))}

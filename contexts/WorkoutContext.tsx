@@ -57,7 +57,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       }
 
       const result = await response.json();
-      console.log('Fetched workouts:', result);
+      console.log('Fetched workouts:', JSON.stringify(result, null, 2));
 
       if (Array.isArray(result)) {
         setWorkouts(result);
@@ -74,12 +74,27 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    if (!user) {
-      setWorkouts([]);
-      setSelectedWorkout(null);
-    } else {
-      fetchWorkouts();
-    }
+    let isMounted = true;
+
+    const init = async () => {
+      if (!user) {
+        if (isMounted) {
+          setWorkouts([]);
+          setSelectedWorkout(null);
+        }
+        return;
+      }
+
+      if (isMounted) {
+        await fetchWorkouts();
+      }
+    };
+
+    init();
+
+    return () => {
+      isMounted = false;
+    };
   }, [user]);
 
   const addWorkout = async (workout: Workout) => {
@@ -93,7 +108,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const token = await user.getIdToken();
-      console.log('Sending workout:', workout);
+      console.log('Sending workout:', JSON.stringify(workout, null, 2));
 
       const response = await fetch('/api/workouts', {
         method: 'POST',
@@ -114,14 +129,11 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       }
 
       const result = await response.json();
-      console.log('Server response:', result);
+      console.log('Server response:', JSON.stringify(result, null, 2));
 
       // Aktualizujeme workouts lokálně
-      setWorkouts(prevWorkouts => {
-        // Pokud result obsahuje data property, použijeme ji
-        const newWorkout = result.data || result;
-        return [...prevWorkouts, newWorkout];
-      });
+      const newWorkout = result.data || result;
+      setWorkouts(prevWorkouts => [...prevWorkouts, newWorkout]);
     } catch (error) {
       console.error('Error adding workout:', error);
     }
@@ -132,6 +144,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const token = await user.getIdToken();
+      console.log('Updating workout:', JSON.stringify(workout, null, 2));
+      
       const response = await fetch(`/api/workouts/${id}`, {
         method: 'PUT',
         headers: {
