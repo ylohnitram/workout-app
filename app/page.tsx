@@ -77,10 +77,6 @@ export default function Home() {
       <div className="container mx-auto p-4">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Plánovač silového tréninku</h1>
-          <div className="flex items-center space-x-4">
-            <span>Přihlášen jako: {user.email}</span>
-            <Button onClick={signOut}>Odhlásit se</Button>
-          </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
