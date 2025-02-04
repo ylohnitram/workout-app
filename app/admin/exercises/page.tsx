@@ -12,289 +12,296 @@ import { Loader2, PlusCircle, Edit2Icon, Trash2Icon } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 
 interface Exercise {
- _id?: string;
- name: string;
- category?: string;
- description?: string;
- videoUrl?: string;
- muscleGroups?: string[];
+  _id?: string;
+  name: string;
+  category?: string;
+  description?: string;
+  videoUrl?: string;
+  muscleGroups?: string[];
 }
 
 const CATEGORIES = ["Prsa", "Záda", "Ramena", "Biceps", "Triceps", "Nohy", "Břicho", "Kardio"];
 
 function ExerciseForm({ 
- exercise,
- onSubmit,
- isSubmitting 
+  exercise,
+  onSubmit,
+  isSubmitting 
 }: { 
- exercise?: Exercise;
- onSubmit: (exercise: Exercise) => Promise<void>;
- isSubmitting: boolean;
+  exercise?: Exercise;
+  onSubmit: (exercise: Exercise) => Promise<void>;
+  isSubmitting: boolean;
 }) {
- const [formData, setFormData] = useState<Exercise>(
-   exercise || {
-     name: "",
-     category: "",
-     description: "",
-     videoUrl: "",
-     muscleGroups: []
-   }
- );
+  const [formData, setFormData] = useState<Exercise>(
+    exercise || {
+      name: "",
+      category: "",
+      description: "",
+      videoUrl: "",
+      muscleGroups: []
+    }
+  );
 
- const handleSubmit = (e: React.FormEvent) => {
-   e.preventDefault();
-   onSubmit(formData);
- };
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
 
- return (
-   <form onSubmit={handleSubmit} className="space-y-4">
-     <DialogHeader>
-       <DialogTitle>
-         {exercise ? 'Upravit cvik' : 'Nový cvik'}
-       </DialogTitle>
-       <DialogDescription>
-         Vyplňte detaily cviku. Pole označená * jsou povinná.
-       </DialogDescription>
-     </DialogHeader>
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <DialogHeader>
+        <DialogTitle>
+          {exercise ? 'Upravit cvik' : 'Nový cvik'}
+        </DialogTitle>
+        <DialogDescription>
+          Vyplňte detaily cviku. Pole označená * jsou povinná.
+        </DialogDescription>
+      </DialogHeader>
 
-     <div className="space-y-4">
-       <div>
-         <label className="block mb-2">
-           Název cviku *
-           <Input
-             value={formData.name}
-             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-             required
-           />
-         </label>
-       </div>
+      <div className="space-y-4">
+        <div>
+          <label className="block mb-2">
+            Název cviku *
+            <Input
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+            />
+          </label>
+        </div>
 
-       <div>
-         <label className="block mb-2">
-           Kategorie
-           <Select
-             value={formData.category}
-             onValueChange={(value) => setFormData({ ...formData, category: value })}
-           >
-             <SelectTrigger>
-               <SelectValue placeholder="Vyberte kategorii" />
-             </SelectTrigger>
-             <SelectContent>
-               {CATEGORIES.map((category) => (
-                 <SelectItem key={category} value={category}>
-                   {category}
-                 </SelectItem>
-               ))}
-             </SelectContent>
-           </Select>
-         </label>
-       </div>
+        <div>
+          <label className="block mb-2">
+            Kategorie
+            <Select
+              value={formData.category}
+              onValueChange={(value) => setFormData({ ...formData, category: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Vyberte kategorii" />
+              </SelectTrigger>
+              <SelectContent>
+                {CATEGORIES.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+        </div>
 
-       <div>
-         <label className="block mb-2">
-           Popis
-           <Textarea
-             value={formData.description}
-             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-             rows={3}
-           />
-         </label>
-       </div>
+        <div>
+          <label className="block mb-2">
+            Popis
+            <Textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={3}
+            />
+          </label>
+        </div>
 
-       <div>
-         <label className="block mb-2">
-           YouTube URL
-           <Input
-             type="url"
-             value={formData.videoUrl}
-             onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
-             placeholder="https://www.youtube.com/watch?v=..."
-           />
-         </label>
-       </div>
-     </div>
+        <div>
+          <label className="block mb-2">
+            YouTube URL
+            <Input
+              type="url"
+              value={formData.videoUrl}
+              onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
+              placeholder="https://www.youtube.com/watch?v=..."
+            />
+          </label>
+        </div>
+      </div>
 
-     <DialogFooter>
-       <Button type="submit" disabled={isSubmitting}>
-         {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-         {exercise ? 'Upravit' : 'Vytvořit'} cvik
-       </Button>
-     </DialogFooter>
-   </form>
- );
+      <DialogFooter>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+          {exercise ? 'Upravit' : 'Vytvořit'} cvik
+        </Button>
+      </DialogFooter>
+    </form>
+  );
 }
 
 export default function AdminExercises() {
- const { user } = useAuth()
- const router = useRouter()
- const [exercises, setExercises] = useState<Exercise[]>([])
- const [isAdmin, setIsAdmin] = useState(false)
- const [isLoading, setIsLoading] = useState(true)
- const [editingExercise, setEditingExercise] = useState<Exercise | null>(null)
- const [isSubmitting, setIsSubmitting] = useState(false)
+  const { user } = useAuth()
+  const router = useRouter()
+  const [exercises, setExercises] = useState<Exercise[]>([])
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [editingExercise, setEditingExercise] = useState<Exercise | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
- useEffect(() => {
-   const fetchExercises = async () => {
-     if (!user) {
-       router.push('/login')
-       return
-     }
-     
-     try {
-       const token = await user.getIdToken();
-       const response = await fetch('/api/admin/exercises', {
-         headers: {
-           'Authorization': `Bearer ${token}`
-         }
-       });
+  useEffect(() => {
+    const fetchExercises = async () => {
+      if (!user) {
+        console.log('No user, redirecting to login');
+        router.push('/login')
+        return
+      }
+      
+      try {
+        console.log('Fetching exercises with token...');
+        const token = await user.getIdToken();
+        const response = await fetch('/api/admin/exercises', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
 
-       if (response.ok) {
-         const { data, isAdmin } = await response.json();
-         setExercises(data || []);
-         setIsAdmin(isAdmin);
-         if (!isAdmin) {
-           router.push('/')
-         }
-       } else {
-         router.push('/')
-       }
-     } catch (error) {
-       console.error('Failed to fetch exercises:', error);
-       router.push('/')
-     } finally {
-       setIsLoading(false);
-     }
-   };
+        console.log('Response status:', response.status);
+        if (response.ok) {
+          const result = await response.json();
+          console.log('Fetched data:', result);
+          const { data, isAdmin } = result;
+          setExercises(data || []);
+          setIsAdmin(isAdmin);
+          if (!isAdmin) {
+            console.log('Not admin, redirecting to home');
+            router.push('/')
+          }
+        } else {
+          console.log('Response not OK, redirecting to home');
+          router.push('/')
+        }
+      } catch (error) {
+        console.error('Failed to fetch exercises:', error);
+        router.push('/')
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-   fetchExercises();
- }, [user, router]);
+    fetchExercises();
+  }, [user, router]);
 
- const handleSubmit = async (exercise: Exercise) => {
-   if (!user) return;
-   
-   setIsSubmitting(true);
-   try {
-     const token = await user.getIdToken();
-     const url = exercise._id 
-       ? `/api/admin/exercises/${exercise._id}`
-       : '/api/admin/exercises';
-     
-     const response = await fetch(url, {
-       method: exercise._id ? 'PUT' : 'POST',
-       headers: {
-         'Authorization': `Bearer ${token}`,
-         'Content-Type': 'application/json'
-       },
-       body: JSON.stringify(exercise)
-     });
+  const handleSubmit = async (exercise: Exercise) => {
+    if (!user) return;
+    
+    setIsSubmitting(true);
+    try {
+      const token = await user.getIdToken();
+      const url = exercise._id 
+        ? `/api/admin/exercises/${exercise._id}`
+        : '/api/admin/exercises';
+      
+      const response = await fetch(url, {
+        method: exercise._id ? 'PUT' : 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(exercise)
+      });
 
-     if (response.ok) {
-       const result = await response.json();
-       if (exercise._id) {
-         setExercises(exercises.map(e => 
-           e._id === exercise._id ? result : e
-         ));
-       } else {
-         setExercises([...exercises, result]);
-       }
-       setEditingExercise(null);
-     }
-   } catch (error) {
-     console.error('Failed to save exercise:', error);
-   } finally {
-     setIsSubmitting(false);
-   }
- };
+      if (response.ok) {
+        const result = await response.json();
+        if (exercise._id) {
+          setExercises(exercises.map(e => 
+            e._id === exercise._id ? result : e
+          ));
+        } else {
+          setExercises([...exercises, result]);
+        }
+        setEditingExercise(null);
+      }
+    } catch (error) {
+      console.error('Failed to save exercise:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
- const handleDelete = async (id: string) => {
-   if (!user || !confirm('Opravdu chcete smazat tento cvik?')) return;
+  const handleDelete = async (id: string) => {
+    if (!user || !confirm('Opravdu chcete smazat tento cvik?')) return;
 
-   try {
-     const token = await user.getIdToken();
-     const response = await fetch(`/api/admin/exercises/${id}`, {
-       method: 'DELETE',
-       headers: {
-         'Authorization': `Bearer ${token}`
-       }
-     });
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch(`/api/admin/exercises/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
 
-     if (response.ok) {
-       setExercises(exercises.filter(e => e._id !== id));
-     }
-   } catch (error) {
-     console.error('Failed to delete exercise:', error);
-   }
- };
+      if (response.ok) {
+        setExercises(exercises.filter(e => e._id !== id));
+      }
+    } catch (error) {
+      console.error('Failed to delete exercise:', error);
+    }
+  };
 
- if (isLoading) {
-   return (
-     <div className="flex items-center justify-center min-h-screen">
-       <Loader2 className="h-8 w-8 animate-spin" />
-     </div>
-   );
- }
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
- if (!isAdmin) {
-   return null;
- }
+  if (!isAdmin) {
+    return null;
+  }
 
- return (
-   <div className="container mx-auto p-4">
-     <div className="flex justify-between items-center mb-6">
-       <h1 className="text-3xl font-bold">Správa systémových cviků</h1>
-       <Dialog>
-         <DialogTrigger asChild>
-           <Button>
-             <PlusCircle className="h-4 w-4 mr-2" />
-             Nový cvik
-           </Button>
-         </DialogTrigger>
-         <DialogContent>
-           <ExerciseForm
-             onSubmit={handleSubmit}
-             isSubmitting={isSubmitting}
-           />
-         </DialogContent>
-       </Dialog>
-     </div>
+  return (
+    <div className="container mx-auto p-4">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Správa systémových cviků</h1>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button>
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Nový cvik
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <ExerciseForm
+              onSubmit={handleSubmit}
+              isSubmitting={isSubmitting}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
 
-     <div className="grid gap-4">
-       {exercises.map((exercise) => (
-         <Card key={exercise._id}>
-           <CardContent className="flex justify-between items-center p-4">
-             <div>
-               <h3 className="font-semibold">{exercise.name}</h3>
-               {exercise.category && (
-                 <p className="text-sm text-gray-500">{exercise.category}</p>
-               )}
-             </div>
-             <div className="flex space-x-2">
-               <Dialog>
-                 <DialogTrigger asChild>
-                   <Button variant="outline" size="sm">
-                     <Edit2Icon className="h-4 w-4" />
-                   </Button>
-                 </DialogTrigger>
-                 <DialogContent>
-                   <ExerciseForm
-                     exercise={exercise}
-                     onSubmit={handleSubmit}
-                     isSubmitting={isSubmitting}
-                   />
-                 </DialogContent>
-               </Dialog>
-               <Button
-                 variant="destructive"
-                 size="sm"
-                 onClick={() => exercise._id && handleDelete(exercise._id)}
-               >
-                 <Trash2Icon className="h-4 w-4" />
-               </Button>
-             </div>
-           </CardContent>
-         </Card>
-       ))}
-     </div>
-   </div>
- );
+      <div className="grid gap-4">
+        {exercises.map((exercise) => (
+          <Card key={exercise._id}>
+            <CardContent className="flex justify-between items-center p-4">
+              <div>
+                <h3 className="font-semibold">{exercise.name}</h3>
+                {exercise.category && (
+                  <p className="text-sm text-gray-500">{exercise.category}</p>
+                )}
+              </div>
+              <div className="flex space-x-2">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Edit2Icon className="h-4 w-4" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <ExerciseForm
+                      exercise={exercise}
+                      onSubmit={handleSubmit}
+                      isSubmitting={isSubmitting}
+                    />
+                  </DialogContent>
+                </Dialog>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => exercise._id && handleDelete(exercise._id)}
+                >
+                  <Trash2Icon className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
 }
