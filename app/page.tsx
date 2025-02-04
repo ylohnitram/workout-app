@@ -59,7 +59,7 @@ export default function Home() {
         const errorData = await response.json();
         console.error('Server error:', errorData);
         throw new Error('Failed to save workout');
-      }
+      } 
     }
   }
 
