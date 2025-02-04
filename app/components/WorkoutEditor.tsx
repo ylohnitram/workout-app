@@ -5,7 +5,6 @@ import { useWorkout } from "@/contexts/WorkoutContext"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,21 +24,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { WORKOUT_DEFAULTS, getDisplayValue, getSafeValue } from '@/contexts/WorkoutContext'
-
-interface Exercise {
-  _id?: string
-  name: string
-  sets: number
-  reps: number
-  weight: number
-}
+import { WORKOUT_DEFAULTS } from '@/contexts/WorkoutContext'
+import type { Exercise } from '@/contexts/WorkoutContext'
 
 export default function WorkoutEditor() {
-  const { workouts = [], addWorkout, updateWorkout, deleteWorkout, selectedWorkout, setSelectedWorkout } = useWorkout()
+  const { workouts, addWorkout, updateWorkout, deleteWorkout, selectedWorkout, setSelectedWorkout } = useWorkout()
   const [workoutName, setWorkoutName] = useState("")
   const [newExercise, setNewExercise] = useState<Exercise>({
-    name: WORKOUT_DEFAULTS.DEFAULT,
+    name: "",
     sets: 0,
     reps: 0,
     weight: 0
@@ -49,63 +41,67 @@ export default function WorkoutEditor() {
   const safeWorkouts = Array.isArray(workouts) ? workouts : []
 
   const handleAddWorkout = async () => {
-    const trimmedName = workoutName.trim();
-    if (trimmedName && trimmedName !== WORKOUT_DEFAULTS.DEFAULT) {
-      try {
-        console.log('Adding workout with data:', {
-          name: trimmedName,
-          exercises: []
-        });
-        const result = await addWorkout({
-          name: trimmedName,
-          exercises: []
-        });
-        console.log('Workout added, result:', result);
-        // Resetujeme až po úspěšném přidání
-        setWorkoutName(WORKOUT_DEFAULTS.DEFAULT);
-      } catch (error) {
-        console.error('Failed to add workout:', error);
-      }
-    } else {
-      console.warn('Invalid workout name:', workoutName);
+    const name = workoutName.trim()
+    if (!name) return
+
+    try {
+      console.log('Creating new workout:', { name, exercises: [] })
+      await addWorkout({
+        name,
+        exercises: []
+      })
+      setWorkoutName("")
+    } catch (error) {
+      console.error('Failed to add workout:', error)
     }
   }
 
   const handleAddExercise = async () => {
-    if (selectedWorkout && selectedWorkout._id && newExercise.name !== WORKOUT_DEFAULTS.DEFAULT) {
-      try {
-        await updateWorkout(selectedWorkout._id, {
-          ...selectedWorkout,
-          exercises: [...selectedWorkout.exercises, newExercise]
-        });
-        // Resetujeme až po úspěšném přidání
-        setNewExercise({
-          name: WORKOUT_DEFAULTS.DEFAULT,
-          sets: 0,
-          reps: 0,
-          weight: 0
-        });
-      } catch (error) {
-        console.error('Failed to add exercise:', error);
-      }
+    if (!selectedWorkout?._id || !newExercise.name.trim()) return
+
+    try {
+      await updateWorkout(selectedWorkout._id, {
+        ...selectedWorkout,
+        exercises: [...selectedWorkout.exercises, {
+          ...newExercise,
+          name: newExercise.name.trim()
+        }]
+      })
+      setNewExercise({
+        name: "",
+        sets: 0,
+        reps: 0,
+        weight: 0
+      })
+    } catch (error) {
+      console.error('Failed to add exercise:', error)
     }
   }
 
   const handleDeleteWorkout = async () => {
-    if (selectedWorkout?._id) {
+    if (!selectedWorkout?._id) return
+    
+    try {
       await deleteWorkout(selectedWorkout._id)
       setSelectedWorkout(null)
+    } catch (error) {
+      console.error('Failed to delete workout:', error)
     }
   }
 
   const handleRemoveExercise = async (index: number) => {
-    if (selectedWorkout && selectedWorkout._id) {
-      const newExercises = [...selectedWorkout.exercises]
-      newExercises.splice(index, 1)
+    if (!selectedWorkout?._id) return
+
+    const newExercises = [...selectedWorkout.exercises]
+    newExercises.splice(index, 1)
+    
+    try {
       await updateWorkout(selectedWorkout._id, {
         ...selectedWorkout,
         exercises: newExercises
       })
+    } catch (error) {
+      console.error('Failed to remove exercise:', error)
     }
   }
 
@@ -119,7 +115,7 @@ export default function WorkoutEditor() {
           <div className="flex space-x-2">
             <Input
               type="text"
-              value={workoutName}  // použijeme přímo workoutName
+              value={workoutName}
               onChange={(e) => setWorkoutName(e.target.value)}
               placeholder="Název tréninku"
             />
@@ -136,7 +132,7 @@ export default function WorkoutEditor() {
           <div className="space-y-4">
             <div className="flex space-x-2">
               <Select
-                value={selectedWorkout?._id || WORKOUT_DEFAULTS.NONE}
+                value={selectedWorkout?._id || ""}
                 onValueChange={(value) => {
                   const workout = safeWorkouts.find(w => w._id === value)
                   setSelectedWorkout(workout || null)
@@ -146,21 +142,15 @@ export default function WorkoutEditor() {
                   <SelectValue placeholder="Vyberte trénink" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={WORKOUT_DEFAULTS.NONE}>Vyberte trénink</SelectItem>
-                  {safeWorkouts.length > 0 ? (
-                    safeWorkouts.map((workout) => (
-                      <SelectItem key={workout._id} value={workout._id || WORKOUT_DEFAULTS.DEFAULT}>
-                        {workout.name}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value={WORKOUT_DEFAULTS.NO_WORKOUTS} disabled>
-                      Žádné tréninky k dispozici
+                  <SelectItem value="">Vyberte trénink</SelectItem>
+                  {safeWorkouts.map((workout) => (
+                    <SelectItem key={workout._id} value={workout._id || ""}>
+                      {workout.name}
                     </SelectItem>
-                  )}
+                  ))}
                 </SelectContent>
               </Select>
-              
+
               {selectedWorkout && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -190,29 +180,38 @@ export default function WorkoutEditor() {
                 <div className="grid grid-cols-4 gap-4">
                   <Input
                     placeholder="Název cviku"
-                    value={newExercise.name === WORKOUT_DEFAULTS.DEFAULT ? "" : newExercise.name}
+                    value={newExercise.name}
                     onChange={(e) => setNewExercise(prev => ({
                       ...prev,
-                      name: e.target.value || WORKOUT_DEFAULTS.DEFAULT
+                      name: e.target.value
                     }))}
                   />
                   <Input
                     type="number"
                     placeholder="Série"
-                    value={newExercise.sets}
-                    onChange={(e) => setNewExercise(prev => ({ ...prev, sets: Number(e.target.value) }))}
+                    value={newExercise.sets || ""}
+                    onChange={(e) => setNewExercise(prev => ({
+                      ...prev,
+                      sets: Number(e.target.value)
+                    }))}
                   />
                   <Input
                     type="number"
                     placeholder="Opakování"
-                    value={newExercise.reps}
-                    onChange={(e) => setNewExercise(prev => ({ ...prev, reps: Number(e.target.value) }))}
+                    value={newExercise.reps || ""}
+                    onChange={(e) => setNewExercise(prev => ({
+                      ...prev,
+                      reps: Number(e.target.value)
+                    }))}
                   />
                   <Input
                     type="number"
                     placeholder="Váha (kg)"
-                    value={newExercise.weight}
-                    onChange={(e) => setNewExercise(prev => ({ ...prev, weight: Number(e.target.value) }))}
+                    value={newExercise.weight || ""}
+                    onChange={(e) => setNewExercise(prev => ({
+                      ...prev,
+                      weight: Number(e.target.value)
+                    }))}
                   />
                 </div>
                 <Button onClick={handleAddExercise}>Přidat cvik</Button>
@@ -246,4 +245,3 @@ export default function WorkoutEditor() {
     </div>
   )
 }
-

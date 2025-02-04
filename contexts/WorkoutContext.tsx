@@ -84,6 +84,12 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
 
   const addWorkout = async (workout: Workout) => {
     if (!user) return;
+    
+    // Validace dat před odesláním
+    if (!workout.name || workout.name === WORKOUT_DEFAULTS.DEFAULT) {
+      console.error('Invalid workout name:', workout.name);
+      return;
+    }
 
     try {
       const token = await user.getIdToken();
@@ -95,7 +101,10 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(workout),
+        body: JSON.stringify({
+          name: workout.name.trim(),
+          exercises: workout.exercises || []
+        }),
       });
 
       if (!response.ok) {
@@ -107,7 +116,12 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       const result = await response.json();
       console.log('Server response:', result);
 
-      await fetchWorkouts();
+      // Aktualizujeme workouts lokálně
+      setWorkouts(prevWorkouts => {
+        // Pokud result obsahuje data property, použijeme ji
+        const newWorkout = result.data || result;
+        return [...prevWorkouts, newWorkout];
+      });
     } catch (error) {
       console.error('Error adding workout:', error);
     }
