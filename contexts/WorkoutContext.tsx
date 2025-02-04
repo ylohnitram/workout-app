@@ -59,10 +59,15 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       const result = await response.json();
       console.log('Fetched workouts:', JSON.stringify(result, null, 2));
 
-      if (Array.isArray(result)) {
-        setWorkouts(result);
-      } else if (Array.isArray(result.data)) {
-        setWorkouts(result.data);
+      // Zpracování odpovědi
+      const workoutsData = result.data || result;
+      if (Array.isArray(workoutsData)) {
+        // Zajistíme, že každý workout má name property
+        const processedWorkouts = workoutsData.map(workout => ({
+          ...workout,
+          name: workout.name || 'Unnamed workout'
+        }));
+        setWorkouts(processedWorkouts);
       } else {
         console.error('Unexpected data format:', result);
         setWorkouts([]);
@@ -108,7 +113,12 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const token = await user.getIdToken();
-      console.log('Sending workout:', JSON.stringify(workout, null, 2));
+      const workoutData = {
+        name: workout.name.trim(),
+        exercises: workout.exercises || []
+      };
+      
+      console.log('Sending workout:', JSON.stringify(workoutData, null, 2));
 
       const response = await fetch('/api/workouts', {
         method: 'POST',
@@ -116,10 +126,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          name: workout.name.trim(),
-          exercises: workout.exercises || []
-        }),
+        body: JSON.stringify(workoutData),
       });
 
       if (!response.ok) {
@@ -131,8 +138,18 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       const result = await response.json();
       console.log('Server response:', JSON.stringify(result, null, 2));
 
-      // Aktualizujeme workouts lokálně
-      const newWorkout = result.data || result;
+      // Kontrolujeme, že odpověď obsahuje všechna potřebná data
+      if (!result._id) {
+        console.error('Invalid server response - missing required fields:', result);
+        return;
+      }
+
+      // Pokud v odpovědi chybí name, použijeme to, co jsme poslali
+      const newWorkout = {
+        ...result,
+        name: result.name || workoutData.name
+      };
+
       setWorkouts(prevWorkouts => [...prevWorkouts, newWorkout]);
     } catch (error) {
       console.error('Error adding workout:', error);
@@ -144,7 +161,12 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const token = await user.getIdToken();
-      console.log('Updating workout:', JSON.stringify(workout, null, 2));
+      const workoutData = {
+        ...workout,
+        name: workout.name.trim()
+      };
+      
+      console.log('Updating workout:', JSON.stringify(workoutData, null, 2));
       
       const response = await fetch(`/api/workouts/${id}`, {
         method: 'PUT',
@@ -152,7 +174,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(workout),
+        body: JSON.stringify(workoutData),
       });
 
       if (!response.ok) {

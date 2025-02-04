@@ -153,12 +153,10 @@ export default function WorkoutEditor() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={WORKOUT_DEFAULTS.NONE}>Vyberte trénink</SelectItem>
-                  {safeWorkouts.map((workout) => (
-                    workout._id ? (
-                      <SelectItem key={workout._id} value={workout._id}>
-                        {workout.name}
-                      </SelectItem>
-                    ) : null
+                  {safeWorkouts.filter(workout => workout._id).map((workout) => (
+                    <SelectItem key={workout._id} value={workout._id as string}>
+                      {workout.name || 'Unnamed workout'}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
