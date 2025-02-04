@@ -51,10 +51,15 @@ export default function WorkoutEditor() {
   const handleAddWorkout = async () => {
     if (workoutName !== WORKOUT_DEFAULTS.DEFAULT) {
       try {
-        await addWorkout({
+        console.log('Adding workout with data:', {
           name: workoutName,
           exercises: []
         });
+        const result = await addWorkout({
+          name: workoutName,
+          exercises: []
+        });
+        console.log('Workout added, result:', result);
         // Resetujeme až po úspěšném přidání
         setWorkoutName(WORKOUT_DEFAULTS.DEFAULT);
       } catch (error) {
