@@ -44,7 +44,7 @@ export default function Home() {
 
   const handleSaveWorkout = async (workoutData) => {
     try {
-      console.log('Saving workout data:', workoutData);
+      console.log('Saving workout data:', workoutData)
       const token = await user.getIdToken()
       const response = await fetch('/api/workouts', {
         method: 'POST',
@@ -56,10 +56,15 @@ export default function Home() {
       })
       
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Server error:', errorData);
-        throw new Error('Failed to save workout');
-      } 
+        const errorData = await response.json()
+        console.error('Server error:', errorData)
+        throw new Error('Failed to save workout')
+      }
+
+      // Pokud uložení proběhlo úspěšně, obnovíme seznam workoutů
+      await fetchWorkouts()
+    } catch (error) {
+      console.error('Error saving workout:', error)
     }
   }
 
@@ -103,4 +108,3 @@ export default function Home() {
     </WorkoutProvider>
   )
 }
-
