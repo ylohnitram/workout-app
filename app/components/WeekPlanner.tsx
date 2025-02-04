@@ -1,5 +1,3 @@
-# app/components/WeekPlanner.tsx
-
 "use client"
 
 import { useState, useEffect } from "react"
