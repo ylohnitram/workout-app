@@ -4,6 +4,7 @@ export interface IExercise extends Document {
   name: string;
   category?: string;  // např. "nohy", "záda", "ruce" atd.
   description?: string;
+  isSystem: boolean;  // přidáno
   createdAt: Date;
   updatedAt: Date;
 }
@@ -21,6 +22,11 @@ const ExerciseSchema = new Schema<IExercise>({
   description: {
     type: String,
     required: false
+  },
+  isSystem: { 
+    type: Boolean,
+    required: true,
+    default: false
   }
 }, {
   timestamps: true
