@@ -5,6 +5,8 @@ import { useWorkout } from "@/contexts/WorkoutContext"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { WORKOUT_DEFAULTS } from '@/contexts/WorkoutContext'
 import { useAuth } from "@/contexts/AuthContext"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Loader2 } from "lucide-react"
 
 const DAYS = ["Pondělí", "Úterý", "Středa", "Čtvrtek", "Pátek", "Sobota", "Neděle"]
 
@@ -13,19 +15,34 @@ interface DayPlan {
   workoutId: string | null;
 }
 
+const CACHE_KEY = 'weekPlanCache';
+
 export default function WeekPlanner() {
   const { workouts, selectedWorkout, setSelectedWorkout } = useWorkout()
   const { user } = useAuth()
-  const [weekPlan, setWeekPlan] = useState<DayPlan[]>(
-    DAYS.map(day => ({ day, workoutId: null }))
-  )
+  const [weekPlan, setWeekPlan] = useState<DayPlan[]>(() => {
+    // Pokus o načtení z cache při inicializaci
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch (e) {
+        console.error('Failed to parse cached week plan:', e);
+      }
+    }
+    return DAYS.map(day => ({ day, workoutId: null }));
+  })
+  const [isLoading, setIsLoading] = useState(true)
 
   const safeWorkouts = Array.isArray(workouts) ? workouts : []
 
   // Načtení týdenního plánu
   useEffect(() => {
     const fetchWeekPlan = async () => {
-      if (!user) return;
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
 
       try {
         const token = await user.getIdToken();
@@ -39,10 +56,14 @@ export default function WeekPlanner() {
           const data = await response.json();
           if (data.dayPlans) {
             setWeekPlan(data.dayPlans);
+            // Uložení do cache
+            localStorage.setItem(CACHE_KEY, JSON.stringify(data.dayPlans));
           }
         }
       } catch (error) {
         console.error('Failed to fetch week plan:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -54,6 +75,9 @@ export default function WeekPlanner() {
     if (!user) return;
 
     try {
+      // Okamžitě aktualizujeme cache
+      localStorage.setItem(CACHE_KEY, JSON.stringify(newPlan));
+      
       const token = await user.getIdToken();
       await fetch('/api/week-plan', {
         method: 'PUT',
@@ -78,7 +102,6 @@ export default function WeekPlanner() {
     setWeekPlan(newPlan);
     await saveWeekPlan(newPlan);
 
-    // Nastavíme selectedWorkout pouze pro vybraný den
     const workout = safeWorkouts.find(w => w._id === workoutId);
     if (workoutId === WORKOUT_DEFAULTS.NONE) {
       setSelectedWorkout(null);
@@ -88,38 +111,49 @@ export default function WeekPlanner() {
   };
 
   return (
-    <div className="grid gap-4">
-      {DAYS.map((day) => {
-        const dayPlan = weekPlan.find(p => p.day === day);
-        const currentWorkoutId = dayPlan?.workoutId || WORKOUT_DEFAULTS.NONE;
-        const selectedWorkout = safeWorkouts.find(w => w._id === currentWorkoutId);
-
-        return (
-          <div key={day} className="flex items-center gap-4">
-            <span className="w-24 font-medium">{day}</span>
-            <Select
-              value={currentWorkoutId}
-              onValueChange={(value) => handleWorkoutSelect(day, value)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Vyberte trénink">
-                  {selectedWorkout ? selectedWorkout.name : 'Žádný trénink'}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={WORKOUT_DEFAULTS.NONE}>Žádný trénink</SelectItem>
-                {safeWorkouts.map((workout) => (
-                  workout._id ? (
-                    <SelectItem key={workout._id} value={workout._id}>
-                      {workout.name || 'Unnamed workout'}
-                    </SelectItem>
-                  ) : null
-                ))}
-              </SelectContent>
-            </Select>
+    <>
+      <Dialog open={isLoading}>
+        <DialogContent className="sm:max-w-md flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4 py-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <p className="text-lg">Načítám plán tréninků...</p>
           </div>
-        );
-      })}
-    </div>
+        </DialogContent>
+      </Dialog>
+
+      <div className="grid gap-4">
+        {DAYS.map((day) => {
+          const dayPlan = weekPlan.find(p => p.day === day);
+          const currentWorkoutId = dayPlan?.workoutId || WORKOUT_DEFAULTS.NONE;
+          const selectedWorkout = safeWorkouts.find(w => w._id === currentWorkoutId);
+
+          return (
+            <div key={day} className="flex items-center gap-4">
+              <span className="w-24 font-medium">{day}</span>
+              <Select
+                value={currentWorkoutId}
+                onValueChange={(value) => handleWorkoutSelect(day, value)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Vyberte trénink">
+                    {selectedWorkout ? selectedWorkout.name : 'Žádný trénink'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={WORKOUT_DEFAULTS.NONE}>Žádný trénink</SelectItem>
+                  {safeWorkouts.map((workout) => (
+                    workout._id ? (
+                      <SelectItem key={workout._id} value={workout._id}>
+                        {workout.name || 'Unnamed workout'}
+                      </SelectItem>
+                    ) : null
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }
