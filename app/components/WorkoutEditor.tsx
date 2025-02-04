@@ -37,7 +37,7 @@ interface Exercise {
 
 export default function WorkoutEditor() {
   const { workouts = [], addWorkout, updateWorkout, deleteWorkout, selectedWorkout, setSelectedWorkout } = useWorkout()
-  const [workoutName, setWorkoutName] = useState(WORKOUT_DEFAULTS.DEFAULT)
+  const [workoutName, setWorkoutName] = useState("")
   const [newExercise, setNewExercise] = useState<Exercise>({
     name: WORKOUT_DEFAULTS.DEFAULT,
     sets: 0,
@@ -49,14 +49,15 @@ export default function WorkoutEditor() {
   const safeWorkouts = Array.isArray(workouts) ? workouts : []
 
   const handleAddWorkout = async () => {
-    if (workoutName !== WORKOUT_DEFAULTS.DEFAULT) {
+    const trimmedName = workoutName.trim();
+    if (trimmedName && trimmedName !== WORKOUT_DEFAULTS.DEFAULT) {
       try {
         console.log('Adding workout with data:', {
-          name: workoutName,
+          name: trimmedName,
           exercises: []
         });
         const result = await addWorkout({
-          name: workoutName,
+          name: trimmedName,
           exercises: []
         });
         console.log('Workout added, result:', result);
@@ -65,6 +66,8 @@ export default function WorkoutEditor() {
       } catch (error) {
         console.error('Failed to add workout:', error);
       }
+    } else {
+      console.warn('Invalid workout name:', workoutName);
     }
   }
 
@@ -116,8 +119,8 @@ export default function WorkoutEditor() {
           <div className="flex space-x-2">
             <Input
               type="text"
-              value={getDisplayValue(workoutName)}
-              onChange={(e) => setWorkoutName(getSafeValue(e.target.value))}
+              value={workoutName}  // použijeme přímo workoutName
+              onChange={(e) => setWorkoutName(e.target.value)}
               placeholder="Název tréninku"
             />
             <Button onClick={handleAddWorkout}>Přidat trénink</Button>
