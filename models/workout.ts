@@ -2,13 +2,13 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IWorkout extends Document {
   userId: string;
+  name: string;
   date: Date;
   exercises: Array<{
     name: string;
-    sets: Array<{
-      weight: number;
-      reps: number;
-    }>;
+    sets: number;
+    reps: number;
+    weight: number;
   }>;
   notes?: string;
   createdAt: Date;
@@ -21,6 +21,10 @@ const WorkoutSchema = new Schema<IWorkout>({
     required: true,
     index: true
   },
+  name: {
+    type: String,
+    required: true
+  },
   date: {
     type: Date,
     required: true,
@@ -31,16 +35,21 @@ const WorkoutSchema = new Schema<IWorkout>({
       type: String,
       required: true
     },
-    sets: [{
-      weight: {
-        type: Number,
-        required: true
-      },
-      reps: {
-        type: Number,
-        required: true
-      }
-    }]
+    sets: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+    reps: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+    weight: {
+      type: Number,
+      required: true,
+      min: 0
+    }
   }],
   notes: {
     type: String
@@ -49,5 +58,4 @@ const WorkoutSchema = new Schema<IWorkout>({
   timestamps: true
 });
 
-// Předejít chybě při hot-reloadu v development módu
-export const Workout = mongoose.models.Workout || mongoose.model<IWorkout>('Workout', WorkoutSchema); 
+export const Workout = mongoose.models.Workout || mongoose.model<IWorkout>('Workout', WorkoutSchema);

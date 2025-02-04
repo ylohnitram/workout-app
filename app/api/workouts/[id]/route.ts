@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Workout } from '@/models/workout';
 import { connectDB } from '@/lib/mongodb';
-import { auth } from '@/lib/firebase';
+import { auth } from '@/lib/firebase-admin';
 
 export async function PUT(
   req: Request,
@@ -18,11 +18,20 @@ export async function PUT(
     const userId = decodedToken.uid;
 
     await connectDB();
-    
     const data = await req.json();
+
+    // Validace dat
+    if (!data.name) {
+      return NextResponse.json({ error: 'Workout name is required' }, { status: 400 });
+    }
+
     const workout = await Workout.findOneAndUpdate(
       { _id: params.id, userId },
-      data,
+      {
+        name: data.name,
+        exercises: data.exercises || [],
+        updatedAt: new Date()
+      },
       { new: true }
     );
 
@@ -55,7 +64,6 @@ export async function DELETE(
     const userId = decodedToken.uid;
 
     await connectDB();
-    
     const workout = await Workout.findOneAndDelete({ _id: params.id, userId });
 
     if (!workout) {
@@ -70,4 +78,4 @@ export async function DELETE(
       { status: 500 }
     );
   }
-} 
+}

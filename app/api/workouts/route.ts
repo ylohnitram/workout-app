@@ -16,11 +16,18 @@ export async function POST(req: Request) {
     const userId = decodedToken.uid;
 
     await connectDB();
-    
     const data = await req.json();
+
+    // Validace dat
+    if (!data.name) {
+      return NextResponse.json({ error: 'Workout name is required' }, { status: 400 });
+    }
+
     const workout = await Workout.create({
       userId,
-      ...data
+      name: data.name,
+      exercises: data.exercises || [],
+      date: new Date()
     });
 
     return NextResponse.json(workout);
@@ -37,7 +44,7 @@ export async function GET(req: Request) {
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ data: [] }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const token = authHeader.split('Bearer ')[1];
@@ -45,14 +52,14 @@ export async function GET(req: Request) {
     const userId = decodedToken.uid;
 
     await connectDB();
-    
     const workouts = await Workout.find({ userId }).sort({ date: -1 });
-    return NextResponse.json({ data: workouts || [] });
+
+    return NextResponse.json({ data: workouts });
   } catch (error) {
     console.error('Workout fetch error:', error);
     return NextResponse.json(
-      { data: [], error: 'Failed to fetch workouts' },
+      { error: 'Failed to fetch workouts' },
       { status: 500 }
     );
   }
-} 
+}
