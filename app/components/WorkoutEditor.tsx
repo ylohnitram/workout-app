@@ -37,7 +37,6 @@ export default function WorkoutEditor() {
     weight: 0
   })
 
-  // Zajistíme, že workouts je vždy pole
   const safeWorkouts = Array.isArray(workouts) ? workouts : []
 
   const handleAddWorkout = async () => {
@@ -62,51 +61,57 @@ export default function WorkoutEditor() {
   }
 
   const handleAddExercise = async () => {
-    if (!selectedWorkout?._id || !newExercise.name.trim()) return
+    if (!selectedWorkout?._id || !newExercise.name.trim()) {
+      console.warn('Cannot add exercise: no workout selected or no exercise name');
+      return;
+    }
 
     try {
+      const exerciseToAdd = {
+        ...newExercise,
+        name: newExercise.name.trim()
+      };
+
       await updateWorkout(selectedWorkout._id, {
         ...selectedWorkout,
-        exercises: [...selectedWorkout.exercises, {
-          ...newExercise,
-          name: newExercise.name.trim()
-        }]
-      })
+        exercises: [...selectedWorkout.exercises, exerciseToAdd]
+      });
+
       setNewExercise({
         name: "",
         sets: 0,
         reps: 0,
         weight: 0
-      })
+      });
     } catch (error) {
-      console.error('Failed to add exercise:', error)
+      console.error('Failed to add exercise:', error);
     }
   }
 
   const handleDeleteWorkout = async () => {
-    if (!selectedWorkout?._id) return
+    if (!selectedWorkout?._id) return;
     
     try {
-      await deleteWorkout(selectedWorkout._id)
-      setSelectedWorkout(null)
+      await deleteWorkout(selectedWorkout._id);
+      setSelectedWorkout(null);
     } catch (error) {
-      console.error('Failed to delete workout:', error)
+      console.error('Failed to delete workout:', error);
     }
   }
 
   const handleRemoveExercise = async (index: number) => {
-    if (!selectedWorkout?._id) return
+    if (!selectedWorkout?._id) return;
 
-    const newExercises = [...selectedWorkout.exercises]
-    newExercises.splice(index, 1)
+    const newExercises = [...selectedWorkout.exercises];
+    newExercises.splice(index, 1);
     
     try {
       await updateWorkout(selectedWorkout._id, {
         ...selectedWorkout,
         exercises: newExercises
-      })
+      });
     } catch (error) {
-      console.error('Failed to remove exercise:', error)
+      console.error('Failed to remove exercise:', error);
     }
   }
 
@@ -137,21 +142,23 @@ export default function WorkoutEditor() {
           <div className="space-y-4">
             <div className="flex space-x-2">
               <Select
-                value={selectedWorkout?._id || ""}
+                value={selectedWorkout?._id || WORKOUT_DEFAULTS.NONE}
                 onValueChange={(value) => {
-                  const workout = safeWorkouts.find(w => w._id === value)
-                  setSelectedWorkout(workout || null)
+                  const workout = safeWorkouts.find(w => w._id === value);
+                  setSelectedWorkout(workout || null);
                 }}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Vyberte trénink" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Vyberte trénink</SelectItem>
+                  <SelectItem value={WORKOUT_DEFAULTS.NONE}>Vyberte trénink</SelectItem>
                   {safeWorkouts.map((workout) => (
-                    <SelectItem key={workout._id} value={workout._id || ""}>
-                      {workout.name}
-                    </SelectItem>
+                    workout._id ? (
+                      <SelectItem key={workout._id} value={workout._id}>
+                        {workout.name}
+                      </SelectItem>
+                    ) : null
                   ))}
                 </SelectContent>
               </Select>
