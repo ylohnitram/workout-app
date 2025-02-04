@@ -182,6 +182,12 @@ export default function AdminExercises() {
     setIsSubmitting(true);
     try {
       const token = await user.getIdToken();
+      const exerciseData = {
+        ...exercise,
+        isSystem: true
+      };
+      console.log('Sending exercise data:', exerciseData);
+      
       const url = exercise._id 
         ? `/api/admin/exercises/${exercise._id}`
         : '/api/admin/exercises';
@@ -192,11 +198,14 @@ export default function AdminExercises() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(exercise)
+        body: JSON.stringify(exerciseData)
       });
 
+      console.log('Response status:', response.status);
+      const result = await response.json();
+      console.log('Server response:', result);
+
       if (response.ok) {
-        const result = await response.json();
         if (exercise._id) {
           setExercises(exercises.map(e => 
             e._id === exercise._id ? result : e
