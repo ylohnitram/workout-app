@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/select"
 import { WORKOUT_DEFAULTS } from '@/contexts/WorkoutContext'
 import { ExerciseSelector } from '@/app/components/ExerciseSelector'
-import type { Exercise } from '@/models/exercise'
+import type { IExercise as Exercise, ExerciseSet, SetType } from '@/models/exercise'
 
 export default function WorkoutEditor() {
   const { workouts, addWorkout, updateWorkout, deleteWorkout, selectedWorkout, setSelectedWorkout } = useWorkout()
