@@ -130,9 +130,11 @@ export default function WorkoutProgress() {
                         
                         {/* Ikony pro speciální typy sérií */}
                         {set.type === SetType.REST_PAUSE && (
-                          <Tooltip>
+                          <Tooltip delayDuration={0}>
                             <TooltipTrigger asChild>
-                              <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                              <div>
+                                <AlertTriangle className="w-4 h-4 text-yellow-500 ml-1" />
+                              </div>
                             </TooltipTrigger>
                             <TooltipContent>
                               <p>Rest-pause série</p>
@@ -144,9 +146,11 @@ export default function WorkoutProgress() {
                         )}
                         
                         {set.type === SetType.DROP && (
-                          <Tooltip>
+                          <Tooltip delayDuration={0}>
                             <TooltipTrigger asChild>
-                              <ArrowDown className="w-4 h-4 text-red-500" />
+                              <div>
+                                <ArrowDown className="w-4 h-4 text-red-500 ml-1" />
+                              </div>
                             </TooltipTrigger>
                             <TooltipContent>
                               <p>Drop série</p>
@@ -158,9 +162,11 @@ export default function WorkoutProgress() {
                         )}
                         
                         {/* Info o sérii */}
-                        <Tooltip>
+                        <Tooltip delayDuration={0}>
                           <TooltipTrigger asChild>
-                            <Info className="w-4 h-4 ml-1" />
+                            <div>
+                              <Info className="w-4 h-4 ml-1" />
+                            </div>
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>{set.weight}kg × {set.reps === 'failure' ? 'do selhání' : set.reps}</p>
