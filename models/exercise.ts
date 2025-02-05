@@ -1,38 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { Exercise, SetType } from '@/types/exercise';
 
-export enum SetType {
-  NORMAL = 'normal',
-  DROP = 'drop',
-  REST_PAUSE = 'rest_pause'
-}
-
-interface DropSet {
-  weight: number;
-  reps: number;
-}
-
-export interface ExerciseSet {
-  type: SetType;
-  weight: number;
-  reps: number | 'failure';  
-  restPauseSeconds?: number; 
-  dropSets?: DropSet[];      
-}
-
-export interface IExercise extends Document {
-  name: string;
-  category?: string;  
-  description?: string;
-  isSystem: boolean;  
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface WorkoutExercise {
-  exerciseId: string;        
-  isSystem: boolean;         
-  sets: ExerciseSet[];      
-}
+export interface IExercise extends Exercise, Document {}
 
 const DropSetSchema = new Schema({
   weight: {
@@ -57,7 +26,7 @@ const ExerciseSetSchema = new Schema({
     required: true
   },
   reps: {
-    type: Schema.Types.Mixed,  // umožní číslo nebo string 'failure'
+    type: Schema.Types.Mixed,
     required: true
   },
   restPauseSeconds: {
