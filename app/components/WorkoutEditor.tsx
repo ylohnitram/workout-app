@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useAuth } from "@/contexts/AuthContext" 
 import { useWorkout } from "@/contexts/WorkoutContext"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -29,6 +30,7 @@ import { ExerciseSelector } from '@/app/components/ExerciseSelector'
 import type { Exercise, ExerciseSet, SetType, WorkoutExercise } from '@/types/exercise'
 
 export default function WorkoutEditor() {
+ const { user } = useAuth()
  const { workouts, addWorkout, updateWorkout, deleteWorkout, selectedWorkout, setSelectedWorkout } = useWorkout()
  const [workoutName, setWorkoutName] = useState("")
  const [systemExercises, setSystemExercises] = useState<Exercise[]>([])
@@ -39,9 +41,16 @@ export default function WorkoutEditor() {
 
  useEffect(() => {
    const fetchExercises = async () => {
+     if (!user) return;
+     
      try {
        console.log('Fetching exercises...');
-       const response = await fetch('/api/admin/exercises')
+       const token = await user.getIdToken();
+       const response = await fetch('/api/admin/exercises', {
+         headers: {
+           'Authorization': `Bearer ${token}`
+         }
+       })
        if (response.ok) {
          const result = await response.json();
          console.log('Exercises response:', result);
@@ -58,7 +67,7 @@ export default function WorkoutEditor() {
    }
 
    fetchExercises()
- }, [])
+ }, [user])
 
  const handleAddWorkout = async () => {
    const name = workoutName.trim()
