@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { Exercise } from '@/models/exercise';
 import { connectDB } from '@/lib/mongodb';
 import { auth } from '@/lib/firebase-admin';
+import { ExerciseModel } from '@/models/exercise';
 
 export async function GET(req: Request) {
   try {

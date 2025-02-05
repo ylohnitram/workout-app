@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { Exercise } from '@/models/exercise';
+import { ExerciseModel } from '@/models/exercise';
 import { connectDB } from '@/lib/mongodb';
 import { auth } from '@/lib/firebase-admin';
 import { checkIsAdmin } from '@/middleware/adminAuth';
@@ -25,7 +25,7 @@ export async function PUT(
     const data = await req.json();
     data.isSystem = true;
     
-    const exercise = await Exercise.findByIdAndUpdate(
+    const exercise = await ExerciseModel.findByIdAndUpdate(
       params.id,
       data,
       { new: true }
@@ -59,7 +59,7 @@ export async function DELETE(
     }
     
     await connectDB();
-    const exercise = await Exercise.findOneAndDelete({
+    const exercise = await ExerciseModel.findOneAndDelete({
       _id: params.id,
       isSystem: true
     });

@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { ExerciseSet, SetType } from './exercise';
+import { SetType } from '@/types/exercise';
 
 interface WorkoutExercise {
  exerciseId: string;

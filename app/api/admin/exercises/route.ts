@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { Exercise } from '@/models/exercise';
+import { ExerciseModel } from '@/models/exercise';
 import { connectDB } from '@/lib/mongodb';
 import { auth } from '@/lib/firebase-admin';
 import { checkIsAdmin } from '@/middleware/adminAuth';
@@ -13,7 +13,7 @@ export async function GET(req: Request) {
 
     await connectDB();
     console.log('Fetching system exercises...');
-    const exercises = await Exercise.find({ 
+    const exercises = await ExerciseModel.find({ 
       isSystem: true
     }).sort({ name: 1 });
     
@@ -47,11 +47,8 @@ export async function POST(req: Request) {
     await connectDB();
     const data = await req.json();
     data.isSystem = true;
-    console.log('Creating exercise with data:', data);
     
-    const exercise = await Exercise.create(data);
-    console.log('Created exercise:', exercise);
-    
+    const exercise = await ExerciseModel.create(data);
     return NextResponse.json(exercise);
   } catch (error) {
     console.error('Admin exercise creation error:', error);
