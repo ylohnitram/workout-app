@@ -1,10 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useAuth } from "@/contexts/AuthContext"
 import { useWorkout } from "@/contexts/WorkoutContext"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { WORKOUT_DEFAULTS } from '@/contexts/WorkoutContext'
-import { useAuth } from "@/contexts/AuthContext"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Loader2 } from "lucide-react"
 
@@ -16,27 +16,30 @@ interface DayPlan {
 }
 
 const CACHE_KEY = 'weekPlanCache';
+const CACHE_EXPIRY = 1000 * 60 * 60; // 1 hodina
 
 export default function WeekPlanner() {
   const { workouts, selectedWorkout, setSelectedWorkout } = useWorkout()
   const { user } = useAuth()
   const [weekPlan, setWeekPlan] = useState<DayPlan[]>(() => {
-    // Pokus o načtení z cache při inicializaci
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
       try {
-        return JSON.parse(cached);
+        const { data, timestamp } = JSON.parse(cached);
+        // Kontrola expirace cache
+        if (Date.now() - timestamp < CACHE_EXPIRY) {
+          return data;
+        }
       } catch (e) {
         console.error('Failed to parse cached week plan:', e);
       }
     }
     return DAYS.map(day => ({ day, workoutId: null }));
-  })
-  const [isLoading, setIsLoading] = useState(true)
+  });
+  const [isLoading, setIsLoading] = useState(true);
 
-  const safeWorkouts = Array.isArray(workouts) ? workouts : []
+  const safeWorkouts = Array.isArray(workouts) ? workouts : [];
 
-  // Načtení týdenního plánu
   useEffect(() => {
     const fetchWeekPlan = async () => {
       if (!user) {
@@ -53,15 +56,28 @@ export default function WeekPlanner() {
         });
 
         if (response.ok) {
-          const data = await response.json();
-          if (data.dayPlans) {
+          const { data } = await response.json();
+          if (data?.dayPlans) {
             setWeekPlan(data.dayPlans);
-            // Uložení do cache
-            localStorage.setItem(CACHE_KEY, JSON.stringify(data.dayPlans));
+            // Uložení do cache s časovým razítkem
+            localStorage.setItem(CACHE_KEY, JSON.stringify({
+              data: data.dayPlans,
+              timestamp: Date.now()
+            }));
           }
         }
       } catch (error) {
         console.error('Failed to fetch week plan:', error);
+        // Při chybě se pokusíme použít cache bez ohledu na expiraci
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) {
+          try {
+            const { data } = JSON.parse(cached);
+            setWeekPlan(data);
+          } catch (e) {
+            console.error('Failed to parse cached week plan:', e);
+          }
+        }
       } finally {
         setIsLoading(false);
       }
@@ -70,13 +86,16 @@ export default function WeekPlanner() {
     fetchWeekPlan();
   }, [user]);
 
-  // Uložení týdenního plánu
   const saveWeekPlan = async (newPlan: DayPlan[]) => {
     if (!user) return;
 
     try {
-      // Okamžitě aktualizujeme cache
-      localStorage.setItem(CACHE_KEY, JSON.stringify(newPlan));
+      // Okamžitě aktualizujeme UI a cache
+      setWeekPlan(newPlan);
+      localStorage.setItem(CACHE_KEY, JSON.stringify({
+        data: newPlan,
+        timestamp: Date.now()
+      }));
       
       const token = await user.getIdToken();
       await fetch('/api/week-plan', {
@@ -99,7 +118,6 @@ export default function WeekPlanner() {
         : dayPlan
     );
     
-    setWeekPlan(newPlan);
     await saveWeekPlan(newPlan);
 
     const workout = safeWorkouts.find(w => w._id === workoutId);

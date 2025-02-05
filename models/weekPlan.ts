@@ -31,4 +31,7 @@ const WeekPlanSchema = new Schema<IWeekPlan>({
   timestamps: true
 });
 
+// Přidáme index pro rychlejší vyhledávání
+WeekPlanSchema.index({ userId: 1 });
+
 export const WeekPlan = mongoose.models.WeekPlan || mongoose.model<IWeekPlan>('WeekPlan', WeekPlanSchema);
