@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { Exercise, SetType } from '@/types/exercise';
+import type { Exercise as ExerciseType, SetType } from '@/types/exercise';
 
-export interface IExercise extends Exercise, Document {}
+export interface IExercise extends ExerciseType, Document {}
 
 const DropSetSchema = new Schema({
   weight: {
@@ -62,4 +62,4 @@ const ExerciseSchema = new Schema<IExercise>({
   timestamps: true
 });
 
-export const Exercise = mongoose.models.Exercise || mongoose.model<IExercise>('Exercise', ExerciseSchema);
+export const ExerciseModel = mongoose.models.Exercise || mongoose.model<IExercise>('Exercise', ExerciseSchema);
