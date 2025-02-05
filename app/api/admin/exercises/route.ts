@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ExerciseModel } from '@/models/exercise';
+import { SetType } from '@/types/exercise';
 import { connectDB } from '@/lib/mongodb';
 import { auth } from '@/lib/firebase-admin';
 import { checkIsAdmin } from '@/middleware/adminAuth';
