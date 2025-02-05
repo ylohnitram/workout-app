@@ -3,6 +3,7 @@ import { ExerciseModel } from '@/models/exercise';
 import { connectDB } from '@/lib/mongodb';
 import { auth } from '@/lib/firebase-admin';
 import { checkIsAdmin } from '@/middleware/adminAuth';
+import { SetType } from '@/types/exercise';
 
 export async function PUT(
   req: Request,
