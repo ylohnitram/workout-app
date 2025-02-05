@@ -30,14 +30,29 @@ interface ExerciseSelectorProps {
   systemExercises: Exercise[];
   userExercises: Exercise[];
   onExerciseAdd: (exerciseId: string, isSystem: boolean, sets: ExerciseSet[]) => void;
+  initialExercise?: {  // Pro editační mód
+    exerciseId: string;
+    name: string;
+    sets: ExerciseSet[];
+    isSystem: boolean;
+  };
+  onSave?: (sets: ExerciseSet[]) => void;  // Pro editační mód
+  onCancel?: () => void;  // Pro editační mód
 }
 
-export function ExerciseSelector({ systemExercises, userExercises, onExerciseAdd }: ExerciseSelectorProps) {
-  const [selectedExerciseId, setSelectedExerciseId] = useState<string>("")
-  const [isSystemExercise, setIsSystemExercise] = useState(true)
-  const [sets, setSets] = useState<ExerciseSet[]>([
-    { type: SetType.NORMAL, weight: 0, reps: 0 }
-  ])
+export function ExerciseSelector({ 
+  systemExercises, 
+  userExercises, 
+  onExerciseAdd,
+  initialExercise,
+  onSave,
+  onCancel 
+}: ExerciseSelectorProps) {
+  const [selectedExerciseId, setSelectedExerciseId] = useState<string>(initialExercise?.exerciseId || "")
+  const [isSystemExercise, setIsSystemExercise] = useState(initialExercise?.isSystem ?? true)
+  const [sets, setSets] = useState<ExerciseSet[]>(
+    initialExercise?.sets || [{ type: SetType.NORMAL, weight: 0, reps: 0 }]
+  )
 
   const handleAddSet = () => {
     setSets([...sets, { type: SetType.NORMAL, weight: 0, reps: 0 }])
@@ -54,12 +69,11 @@ export function ExerciseSelector({ systemExercises, userExercises, onExerciseAdd
     newSets[index] = {
       ...newSets[index],
       type,
-      // Pro drop série přesuneme aktuální váhu do prvního drop setu
       weight: type === SetType.DROP ? 0 : currentWeight,
       restPauseSeconds: type === SetType.REST_PAUSE ? 5 : undefined,
       dropSets: type === SetType.DROP ? [
-        { weight: currentWeight }, // První váha zůstane zachována
-        { weight: 0 } // Druhá váha defaultně 0
+        { weight: currentWeight },
+        { weight: 0 }
       ] : undefined
     }
     setSets(newSets)
@@ -80,7 +94,6 @@ export function ExerciseSelector({ systemExercises, userExercises, onExerciseAdd
     const newSets = [...sets]
     const currentSet = newSets[setIndex]
     if (currentSet.type === SetType.DROP) {
-      // Zachováme existující váhy a doplníme nové s nulovou váhou
       currentSet.dropSets = Array(count).fill(null).map((_, i) => (
         currentSet.dropSets?.[i] || { weight: 0 }
       ))
@@ -98,53 +111,70 @@ export function ExerciseSelector({ systemExercises, userExercises, onExerciseAdd
   }
 
   const handleSubmit = () => {
-    if (!selectedExerciseId) return
-    onExerciseAdd(selectedExerciseId, isSystemExercise, sets)
-    setSelectedExerciseId("")
-    setSets([{ type: SetType.NORMAL, weight: 0, reps: 0 }])
+    if (initialExercise && onSave) {
+      // Editační mód
+      onSave(sets)
+    } else if (selectedExerciseId) {
+      // Mód přidávání nového cviku
+      onExerciseAdd(selectedExerciseId, isSystemExercise, sets)
+      setSelectedExerciseId("")
+      setSets([{ type: SetType.NORMAL, weight: 0, reps: 0 }])
+    }
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Přidat cvik do tréninku</CardTitle>
+        <CardTitle>
+          {initialExercise ? 'Upravit cvik' : 'Přidat cvik do tréninku'}
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="system" onValueChange={(value) => setIsSystemExercise(value === "system")} className="mb-6">
-          <TabsList>
-            <TabsTrigger value="system">Systémové cviky</TabsTrigger>
-            <TabsTrigger value="user">Moje cviky</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="system">
-            <Select value={selectedExerciseId} onValueChange={setSelectedExerciseId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Vyberte cvik" />
-              </SelectTrigger>
-              <SelectContent>
-                {systemExercises.map((exercise) => (
-                  <SelectItem key={exercise._id} value={exercise._id}>{exercise.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </TabsContent>
-          
-          <TabsContent value="user">
-            <Select value={selectedExerciseId} onValueChange={setSelectedExerciseId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Vyberte cvik" />
-              </SelectTrigger>
-              <SelectContent>
-                {userExercises.map((exercise) => (
-                  <SelectItem key={exercise._id} value={exercise._id}>{exercise.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </TabsContent>
-        </Tabs>
+        {!initialExercise && (
+          <Tabs
+            defaultValue="system"
+            onValueChange={(value) => setIsSystemExercise(value === "system")}
+            className="mb-6"
+          >
+            <TabsList>
+              <TabsTrigger value="system">Systémové cviky</TabsTrigger>
+              <TabsTrigger value="user">Moje cviky</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="system">
+              <Select value={selectedExerciseId} onValueChange={setSelectedExerciseId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Vyberte cvik" />
+                </SelectTrigger>
+                <SelectContent>
+                  {systemExercises.map((exercise) => (
+                    <SelectItem key={exercise._id} value={exercise._id}>{exercise.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </TabsContent>
+            
+            <TabsContent value="user">
+              <Select value={selectedExerciseId} onValueChange={setSelectedExerciseId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Vyberte cvik" />
+                </SelectTrigger>
+                <SelectContent>
+                  {userExercises.map((exercise) => (
+                    <SelectItem key={exercise._id} value={exercise._id}>{exercise.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </TabsContent>
+          </Tabs>
+        )}
 
-        {selectedExerciseId && (
+        {(selectedExerciseId || initialExercise) && (
           <div className="space-y-6">
+            {initialExercise && (
+              <h3 className="text-lg font-medium">{initialExercise.name}</h3>
+            )}
+            
             {sets.map((set, setIndex) => (
               <div 
                 key={setIndex} 
@@ -155,15 +185,16 @@ export function ExerciseSelector({ systemExercises, userExercises, onExerciseAdd
                 )}
               >
                 <div className="flex justify-between items-start">
-                  <h3 className="font-medium">Série {setIndex + 1}</h3>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleRemoveSet(setIndex)}
-                    disabled={sets.length === 1}
-                  >
-                    <MinusCircle className="h-4 w-4" />
-                  </Button>
+                  <h4 className="font-medium">Série {setIndex + 1}</h4>
+                  {sets.length > 1 && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleRemoveSet(setIndex)}
+                    >
+                      <MinusCircle className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
 
                 <div className="grid gap-4">
@@ -202,7 +233,6 @@ export function ExerciseSelector({ systemExercises, userExercises, onExerciseAdd
                     </Select>
                   </div>
 
-                  {/* Váha se zobrazí pouze pro normální a rest-pause série */}
                   {set.type !== SetType.DROP && (
                     <div className="grid gap-2">
                       <Label>Váha (kg)</Label>
@@ -263,18 +293,27 @@ export function ExerciseSelector({ systemExercises, userExercises, onExerciseAdd
             ))}
 
             <div className="flex justify-between">
-              <Button
-                variant="outline"
-                onClick={handleAddSet}
-              >
-                <PlusCircle className="h-4 w-4 mr-2" />
-                Přidat sérii
-              </Button>
-
-              <Button onClick={handleSubmit}>
-                <Dumbbell className="h-4 w-4 mr-2" />
-                Přidat do tréninku
-              </Button>
+              {initialExercise ? (
+                <>
+                  <Button variant="outline" onClick={onCancel}>
+                    Zrušit
+                  </Button>
+                  <Button onClick={handleSubmit}>
+                    Uložit změny
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="outline" onClick={handleAddSet}>
+                    <PlusCircle className="h-4 w-4 mr-2" />
+                    Přidat sérii
+                  </Button>
+                  <Button onClick={handleSubmit}>
+                    <Dumbbell className="h-4 w-4 mr-2" />
+                    Přidat do tréninku
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         )}
