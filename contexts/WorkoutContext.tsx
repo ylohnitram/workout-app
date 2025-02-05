@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import { SetType } from '@/types/exercise';
 
 export const WORKOUT_DEFAULTS = {
   NONE: 'none',
@@ -9,18 +10,31 @@ export const WORKOUT_DEFAULTS = {
   NO_WORKOUTS: 'no-workouts'
 } as const;
 
-export interface Exercise {
-  _id?: string;
-  name: string;
-  sets: number;
-  reps: number;
+interface DropSet {
   weight: number;
+  reps: number;
+}
+
+interface ExerciseSet {
+  type: SetType;
+  weight: number;
+  reps: number | 'failure';
+  restPauseSeconds?: number;
+  dropSets?: DropSet[];
+}
+
+interface WorkoutExercise {
+  exerciseId: string;
+  isSystem: boolean;
+  name: string;
+  sets: ExerciseSet[];
 }
 
 export interface Workout {
   _id?: string;
   name: string;
-  exercises: Exercise[];
+  exercises: WorkoutExercise[];
+  date?: Date;
 }
 
 interface WorkoutContextType {
@@ -57,16 +71,24 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       }
 
       const result = await response.json();
-      console.log('Fetched workouts:', JSON.stringify(result, null, 2));
+      console.log('Raw API response:', result);
 
-      // Zpracování odpovědi
-      const workoutsData = result.data || result;
+      const workoutsData = result.data || [];
       if (Array.isArray(workoutsData)) {
-        // Zajistíme, že každý workout má name property
         const processedWorkouts = workoutsData.map(workout => ({
           ...workout,
-          name: workout.name || 'Unnamed workout'
+          _id: workout._id || workout.id,
+          name: workout.name || 'Unnamed workout',
+          exercises: Array.isArray(workout.exercises) ? workout.exercises.map(exercise => ({
+            ...exercise,
+            sets: Array.isArray(exercise.sets) ? exercise.sets.map(set => ({
+              ...set,
+              dropSets: Array.isArray(set.dropSets) ? set.dropSets : []
+            })) : []
+          })) : []
         }));
+        
+        console.log('Processed workouts:', processedWorkouts);
         setWorkouts(processedWorkouts);
       } else {
         console.error('Unexpected data format:', result);
@@ -105,7 +127,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const addWorkout = async (workout: Workout) => {
     if (!user) return;
     
-    // Validace dat před odesláním
     if (!workout.name || workout.name === WORKOUT_DEFAULTS.DEFAULT) {
       console.error('Invalid workout name:', workout.name);
       return;
@@ -138,13 +159,11 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       const result = await response.json();
       console.log('Server response:', JSON.stringify(result, null, 2));
 
-      // Kontrolujeme, že odpověď obsahuje všechna potřebná data
       if (!result._id) {
         console.error('Invalid server response - missing required fields:', result);
         return;
       }
 
-      // Pokud v odpovědi chybí name, použijeme to, co jsme poslali
       const newWorkout = {
         ...result,
         name: result.name || workoutData.name
@@ -184,6 +203,12 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       }
 
       await fetchWorkouts();
+      
+      // Aktualizujeme selectedWorkout, pokud byl upravován
+      if (selectedWorkout?._id === id) {
+        const updatedWorkout = await response.json();
+        setSelectedWorkout(updatedWorkout);
+      }
     } catch (error) {
       console.error('Error updating workout:', error);
     }
@@ -205,6 +230,11 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         const errorText = await response.text();
         console.error('Server error:', response.status, errorText);
         return;
+      }
+
+      // Resetujeme selectedWorkout, pokud byl smazán
+      if (selectedWorkout?._id === id) {
+        setSelectedWorkout(null);
       }
 
       await fetchWorkouts();
