@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import type { Exercise as ExerciseType, SetType } from '@/types/exercise';
+import type { Exercise as ExerciseType } from '@/types/exercise';
+import { SetType } from '@/types/exercise';
 
 export interface IExercise extends ExerciseType, Document {}
 
