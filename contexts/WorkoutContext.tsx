@@ -10,6 +10,7 @@ export const WORKOUT_DEFAULTS = {
   NO_WORKOUTS: 'no-workouts'
 } as const;
 
+// Základní typy pro cvičení
 interface DropSet {
   weight: number;
   reps: number;
@@ -37,13 +38,42 @@ export interface Workout {
   date?: Date;
 }
 
+// Typy pro aktivní tracking workoutu
+interface ActiveWorkoutSet extends ExerciseSet {
+  isCompleted: boolean;
+  actualWeight?: number;
+  actualReps?: number;
+}
+
+interface ActiveWorkoutExercise extends Omit<WorkoutExercise, 'sets'> {
+  sets: ActiveWorkoutSet[];
+  progress: number;
+}
+
+interface ActiveWorkout {
+  workoutId: string;
+  startTime: Date;
+  exercises: ActiveWorkoutExercise[];
+  progress: number;
+}
+
 interface WorkoutContextType {
+  // Základní funkce pro správu workoutů
   workouts: Workout[];
   addWorkout: (workout: Workout) => Promise<void>;
   updateWorkout: (id: string, workout: Workout) => Promise<void>;
   deleteWorkout: (id: string) => Promise<void>;
   selectedWorkout: Workout | null;
   setSelectedWorkout: (workout: Workout | null) => void;
+  
+  // Funkce pro tracking workoutu
+  activeWorkout: ActiveWorkout | null;
+  startWorkout: (workoutId: string) => void;
+  completeSet: (exerciseIndex: number, setIndex: number, performance?: {
+    weight?: number;
+    reps?: number;
+  }) => void;
+  endWorkout: () => Promise<void>;
 }
 
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
@@ -51,7 +81,27 @@ const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
 export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
+  const [activeWorkout, setActiveWorkout] = useState<ActiveWorkout | null>(null);
+  const [workoutTimer, setWorkoutTimer] = useState<number>(0);
   const { user } = useAuth();
+
+  // Timer effect pro aktivní workout
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (activeWorkout) {
+      interval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - activeWorkout.startTime.getTime()) / 1000);
+        setWorkoutTimer(elapsed);
+      }, 1000);
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [activeWorkout]);
 
   const fetchWorkouts = async () => {
     if (!user) return;
@@ -232,7 +282,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Resetujeme selectedWorkout, pokud byl smazán
       if (selectedWorkout?._id === id) {
         setSelectedWorkout(null);
       }
@@ -243,6 +292,94 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Funkce pro tracking workoutu
+  const startWorkout = (workoutId: string) => {
+    const workout = workouts.find(w => w._id === workoutId);
+    if (!workout) return;
+
+    const activeWorkoutExercises: ActiveWorkoutExercise[] = workout.exercises.map(exercise => ({
+      ...exercise,
+      sets: exercise.sets.map(set => ({
+        ...set,
+        isCompleted: false
+      })),
+      progress: 0
+    }));
+
+    setActiveWorkout({
+      workoutId,
+      startTime: new Date(),
+      exercises: activeWorkoutExercises,
+      progress: 0
+    });
+  };
+
+  const completeSet = (exerciseIndex: number, setIndex: number, performance?: {
+    weight?: number;
+    reps?: number;
+  }) => {
+    if (!activeWorkout) return;
+
+    setActiveWorkout(prev => {
+      if (!prev) return null;
+
+      const newExercises = [...prev.exercises];
+      const exercise = newExercises[exerciseIndex];
+      
+      if (!exercise) return prev;
+
+      // Označit sérii jako dokončenou
+      exercise.sets[setIndex] = {
+        ...exercise.sets[setIndex],
+        isCompleted: true,
+        actualWeight: performance?.weight,
+        actualReps: performance?.reps
+      };
+
+      // Přepočítat progress cviku
+      const completedSets = exercise.sets.filter(s => s.isCompleted).length;
+      exercise.progress = (completedSets / exercise.sets.length) * 100;
+
+      // Přepočítat celkový progress
+      const totalSets = newExercises.reduce((total, ex) => total + ex.sets.length, 0);
+      const totalCompletedSets = newExercises.reduce((total, ex) => 
+        total + ex.sets.filter(s => s.isCompleted).length, 0);
+      
+      return {
+        ...prev,
+        exercises: newExercises,
+        progress: (totalCompletedSets / totalSets) * 100
+      };
+    });
+  };
+
+  const endWorkout = async () => {
+    if (!activeWorkout || !user) return;
+
+    try {
+      const token = await user.getIdToken();
+      await fetch('/api/workout-logs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          workoutId: activeWorkout.workoutId,
+          startTime: activeWorkout.startTime,
+          endTime: new Date(),
+          duration: workoutTimer,
+          exercises: activeWorkout.exercises
+        })
+      });
+
+      setActiveWorkout(null);
+      setWorkoutTimer(0);
+    } catch (error) {
+      console.error('Failed to save workout log:', error);
+    }
+  };
+
   const value = {
     workouts,
     addWorkout,
@@ -250,6 +387,10 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     deleteWorkout,
     selectedWorkout,
     setSelectedWorkout,
+    activeWorkout,
+    startWorkout,
+    completeSet,
+    endWorkout
   };
 
   return (
