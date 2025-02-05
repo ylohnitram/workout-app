@@ -40,9 +40,13 @@ export default function WorkoutEditor() {
  useEffect(() => {
    const fetchExercises = async () => {
      try {
+       console.log('Fetching exercises...');
        const response = await fetch('/api/admin/exercises')
        if (response.ok) {
-         const { data } = await response.json()
+         const result = await response.json();
+         console.log('Exercises response:', result);
+         const { data } = result;
+         console.log('Setting exercises:', data);
          setSystemExercises(data)
        }
        setUserExercises([])
