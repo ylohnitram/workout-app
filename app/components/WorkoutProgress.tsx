@@ -5,35 +5,33 @@ import { useWorkout } from "@/contexts/WorkoutContext"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
-import { CheckSquare, Square, Timer, X } from "lucide-react"
+import { Timer, CheckSquare, Square, AlertTriangle, ArrowDown, Info } from "lucide-react"
 import { 
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { SetType } from '@/types/exercise'
 
 function formatTime(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const remainingSeconds = seconds % 60;
-  
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
 export default function WorkoutProgress() {
   const { activeWorkout, completeSet, endWorkout } = useWorkout()
-  const [showSetDialog, setShowSetDialog] = useState(false)
-  const [selectedExercise, setSelectedExercise] = useState<number | null>(null)
-  const [selectedSet, setSelectedSet] = useState<number | null>(null)
-  const [actualWeight, setActualWeight] = useState<string>("")
-  const [actualReps, setActualReps] = useState<string>("")
-  const [timer, setTimer] = useState<number>(0)
   const [showEndDialog, setShowEndDialog] = useState(false)
+  const [timer, setTimer] = useState<number>(0)
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -52,32 +50,16 @@ export default function WorkoutProgress() {
     };
   }, [activeWorkout]);
 
-  const handleSetClick = (exerciseIndex: number, setIndex: number) => {
+  const handleSetToggle = (exerciseIndex: number, setIndex: number) => {
     const exercise = activeWorkout?.exercises[exerciseIndex];
     const set = exercise?.sets[setIndex];
     
-    if (set?.isCompleted || !exercise) return;
+    if (!set) return;
 
-    setSelectedExercise(exerciseIndex);
-    setSelectedSet(setIndex);
-    setActualWeight(set.weight.toString());
-    setActualReps(typeof set.reps === 'number' ? set.reps.toString() : "");
-    setShowSetDialog(true);
-  };
-
-  const handleSetComplete = () => {
-    if (selectedExercise === null || selectedSet === null) return;
-
-    completeSet(selectedExercise, selectedSet, {
-      weight: Number(actualWeight),
-      reps: Number(actualReps)
+    completeSet(exerciseIndex, setIndex, {
+      weight: set.weight,
+      reps: typeof set.reps === 'number' ? set.reps : undefined
     });
-
-    setShowSetDialog(false);
-    setSelectedExercise(null);
-    setSelectedSet(null);
-    setActualWeight("");
-    setActualReps("");
 
     // Pokud jsme dosáhli 100% progresu, zobrazíme dialog pro ukončení
     if (activeWorkout?.progress === 100) {
@@ -98,7 +80,7 @@ export default function WorkoutProgress() {
   }
 
   return (
-    <>
+    <TooltipProvider>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Probíhající trénink</CardTitle>
@@ -132,26 +114,60 @@ export default function WorkoutProgress() {
                 
                 <div className="flex flex-wrap gap-2">
                   {exercise.sets.map((set, setIndex) => (
-                    <Button
-                      key={setIndex}
-                      variant={set.isCompleted ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => handleSetClick(exerciseIndex, setIndex)}
-                      disabled={set.isCompleted}
-                      className="relative"
-                    >
-                      {set.isCompleted ? (
-                        <CheckSquare className="w-4 h-4" />
-                      ) : (
-                        <Square className="w-4 h-4" />
-                      )}
-                      
-                      {set.isCompleted && (
-                        <span className="absolute -top-1 -right-1 text-[10px] bg-primary text-primary-foreground rounded-full px-1">
-                          {set.actualReps || set.reps}×{set.actualWeight || set.weight}
-                        </span>
-                      )}
-                    </Button>
+                    <div key={setIndex} className="flex items-center">
+                      <Button
+                        variant={set.isCompleted ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleSetToggle(exerciseIndex, setIndex)}
+                        className="relative flex items-center gap-1"
+                      >
+                        {set.isCompleted ? (
+                          <CheckSquare className="w-4 h-4" />
+                        ) : (
+                          <Square className="w-4 h-4" />
+                        )}
+                        <span>Série {setIndex + 1}</span>
+                        
+                        {/* Ikony pro speciální typy sérií */}
+                        {set.type === SetType.REST_PAUSE && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Rest-pause série</p>
+                              {set.restPauseSeconds && (
+                                <p>Pauza: {set.restPauseSeconds}s</p>
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        
+                        {set.type === SetType.DROP && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <ArrowDown className="w-4 h-4 text-red-500" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Drop série</p>
+                              {set.dropSets && set.dropSets.map((drop, i) => (
+                                <p key={i}>Drop {i + 1}: {drop.weight}kg × {drop.reps}</p>
+                              ))}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        
+                        {/* Info o sérii */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="w-4 h-4 ml-1" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{set.weight}kg × {set.reps === 'failure' ? 'do selhání' : set.reps}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </Button>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -168,60 +184,18 @@ export default function WorkoutProgress() {
         </CardContent>
       </Card>
 
-      {/* Dialog pro zadání výkonu série */}
-      <Dialog open={showSetDialog} onOpenChange={setShowSetDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Dokončit sérii</DialogTitle>
-            <DialogDescription>
-              Zadejte skutečné hodnoty pro tuto sérii
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="weight">Váha (kg)</Label>
-              <Input
-                id="weight"
-                type="number"
-                value={actualWeight}
-                onChange={(e) => setActualWeight(e.target.value)}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="reps">Počet opakování</Label>
-              <Input
-                id="reps"
-                type="number"
-                value={actualReps}
-                onChange={(e) => setActualReps(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowSetDialog(false)}>
-              Zrušit
-            </Button>
-            <Button onClick={handleSetComplete}>
-              Potvrdit
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Dialog pro ukončení tréninku */}
       <Dialog open={showEndDialog} onOpenChange={setShowEndDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Ukončit trénink?</DialogTitle>
-            <DialogDescription>
-              {activeWorkout.progress < 100 
-                ? "Trénink není dokončen. Opravdu jej chcete ukončit?"
-                : "Gratulujeme k dokončení tréninku!"}
-            </DialogDescription>
           </DialogHeader>
+
+          <div>
+            {activeWorkout.progress < 100 
+              ? "Trénink není dokončen. Opravdu jej chcete ukončit?"
+              : "Gratulujeme k dokončení tréninku!"}
+          </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEndDialog(false)}>
@@ -239,6 +213,6 @@ export default function WorkoutProgress() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </TooltipProvider>
   )
 }
