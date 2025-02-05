@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useWorkout } from "@/contexts/WorkoutContext"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -25,93 +25,104 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { WORKOUT_DEFAULTS } from '@/contexts/WorkoutContext'
-import type { Exercise } from '@/contexts/WorkoutContext'
+import { ExerciseSelector } from '@/app/components/ExerciseSelector'
+import type { Exercise } from '@/models/exercise'
 
 export default function WorkoutEditor() {
   const { workouts, addWorkout, updateWorkout, deleteWorkout, selectedWorkout, setSelectedWorkout } = useWorkout()
   const [workoutName, setWorkoutName] = useState("")
-  const [newExercise, setNewExercise] = useState<Exercise>({
-    name: "",
-    sets: 0,
-    reps: 0,
-    weight: 0
-  })
+  const [systemExercises, setSystemExercises] = useState<Exercise[]>([])
+  const [userExercises, setUserExercises] = useState<Exercise[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   const safeWorkouts = Array.isArray(workouts) ? workouts : []
+
+  useEffect(() => {
+    const fetchExercises = async () => {
+      try {
+        const response = await fetch('/api/admin/exercises')
+        if (response.ok) {
+          const { data } = await response.json()
+          setSystemExercises(data)
+        }
+        // TODO: Přidat načítání uživatelských cviků až bude API
+        setUserExercises([])
+      } catch (error) {
+        console.error('Failed to fetch exercises:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchExercises()
+  }, [])
 
   const handleAddWorkout = async () => {
     const name = workoutName.trim()
     if (!name) {
-      console.warn('Empty workout name');
-      return;
+      console.warn('Empty workout name')
+      return
     }
 
-    const newWorkout = {
-      name,
-      exercises: []
-    };
-
     try {
-      console.log('Creating new workout:', JSON.stringify(newWorkout, null, 2));
-      await addWorkout(newWorkout);
-      setWorkoutName("");
+      await addWorkout({
+        name,
+        exercises: []
+      })
+      setWorkoutName("")
     } catch (error) {
-      console.error('Failed to add workout:', error);
+      console.error('Failed to add workout:', error)
     }
   }
 
-  const handleAddExercise = async () => {
-    if (!selectedWorkout?._id || !newExercise.name.trim()) {
-      console.warn('Cannot add exercise: no workout selected or no exercise name');
-      return;
-    }
+  const handleExerciseAdd = async (exerciseId: string, isSystem: boolean, sets: any[]) => {
+    if (!selectedWorkout?._id) return
+
+    const selectedExercise = isSystem
+      ? systemExercises.find(e => e._id === exerciseId)
+      : userExercises.find(e => e._id === exerciseId)
+
+    if (!selectedExercise) return
 
     try {
-      const exerciseToAdd = {
-        ...newExercise,
-        name: newExercise.name.trim()
-      };
-
       await updateWorkout(selectedWorkout._id, {
         ...selectedWorkout,
-        exercises: [...selectedWorkout.exercises, exerciseToAdd]
-      });
-
-      setNewExercise({
-        name: "",
-        sets: 0,
-        reps: 0,
-        weight: 0
-      });
+        exercises: [
+          ...selectedWorkout.exercises,
+          {
+            exerciseId,
+            isSystem,
+            name: selectedExercise.name,
+            sets
+          }
+        ]
+      })
     } catch (error) {
-      console.error('Failed to add exercise:', error);
+      console.error('Failed to add exercise to workout:', error)
     }
   }
 
   const handleDeleteWorkout = async () => {
-    if (!selectedWorkout?._id) return;
+    if (!selectedWorkout?._id) return
     
     try {
-      await deleteWorkout(selectedWorkout._id);
-      setSelectedWorkout(null);
+      await deleteWorkout(selectedWorkout._id)
+      setSelectedWorkout(null)
     } catch (error) {
-      console.error('Failed to delete workout:', error);
+      console.error('Failed to delete workout:', error)
     }
   }
 
   const handleRemoveExercise = async (index: number) => {
-    if (!selectedWorkout?._id) return;
+    if (!selectedWorkout?._id) return
 
-    const newExercises = [...selectedWorkout.exercises];
-    newExercises.splice(index, 1);
-    
     try {
       await updateWorkout(selectedWorkout._id, {
         ...selectedWorkout,
-        exercises: newExercises
-      });
+        exercises: selectedWorkout.exercises.filter((_, i) => i !== index)
+      })
     } catch (error) {
-      console.error('Failed to remove exercise:', error);
+      console.error('Failed to remove exercise:', error)
     }
   }
 
@@ -136,122 +147,106 @@ export default function WorkoutEditor() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Upravit trénink</CardTitle>
+          <CardTitle>Vybrat trénink</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="flex space-x-2">
-              <Select
-                value={selectedWorkout?._id || WORKOUT_DEFAULTS.NONE}
-                onValueChange={(value) => {
-                  const workout = safeWorkouts.find(w => w._id === value);
-                  setSelectedWorkout(workout || null);
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Vyberte trénink" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={WORKOUT_DEFAULTS.NONE}>Vyberte trénink</SelectItem>
-                  {safeWorkouts.filter(workout => workout._id).map((workout) => (
-                    <SelectItem key={workout._id} value={workout._id as string}>
-                      {workout.name || 'Unnamed workout'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {selectedWorkout && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive">
-                      <Trash2Icon className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Opravdu chcete smazat tento trénink?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Tato akce je nevratná. Trénink bude odstraněn.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Zrušit</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDeleteWorkout}>Smazat</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-            </div>
+          <div className="flex space-x-2">
+            <Select
+              value={selectedWorkout?._id || WORKOUT_DEFAULTS.NONE}
+              onValueChange={(value) => {
+                const workout = safeWorkouts.find(w => w._id === value)
+                setSelectedWorkout(workout || null)
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Vyberte trénink" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={WORKOUT_DEFAULTS.NONE}>Vyberte trénink</SelectItem>
+                {safeWorkouts.filter(workout => workout._id).map((workout) => (
+                  <SelectItem key={workout._id} value={workout._id as string}>
+                    {workout.name || 'Unnamed workout'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
             {selectedWorkout && (
-              <div className="space-y-4">
-                <h3 className="font-medium">Přidat nový cvik</h3>
-                <div className="grid grid-cols-4 gap-4">
-                  <Input
-                    placeholder="Název cviku"
-                    value={newExercise.name}
-                    onChange={(e) => setNewExercise(prev => ({
-                      ...prev,
-                      name: e.target.value
-                    }))}
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Série"
-                    value={newExercise.sets || ""}
-                    onChange={(e) => setNewExercise(prev => ({
-                      ...prev,
-                      sets: Number(e.target.value)
-                    }))}
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Opakování"
-                    value={newExercise.reps || ""}
-                    onChange={(e) => setNewExercise(prev => ({
-                      ...prev,
-                      reps: Number(e.target.value)
-                    }))}
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Váha (kg)"
-                    value={newExercise.weight || ""}
-                    onChange={(e) => setNewExercise(prev => ({
-                      ...prev,
-                      weight: Number(e.target.value)
-                    }))}
-                  />
-                </div>
-                <Button onClick={handleAddExercise}>Přidat cvik</Button>
-
-                {selectedWorkout.exercises.length > 0 && (
-                  <div className="mt-4">
-                    <h3 className="font-medium mb-2">Cviky v tréninku</h3>
-                    <div className="space-y-2">
-                      {selectedWorkout.exercises.map((exercise, index) => (
-                        <div key={index} className="flex justify-between items-center p-2 bg-gray-100 rounded">
-                          <span>
-                            {exercise.name}: {exercise.sets}x{exercise.reps} ({exercise.weight}kg)
-                          </span>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleRemoveExercise(index)}
-                          >
-                            <Trash2Icon className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive">
+                    <Trash2Icon className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Opravdu chcete smazat tento trénink?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Tato akce je nevratná. Trénink bude odstraněn.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteWorkout}>Smazat</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
           </div>
         </CardContent>
       </Card>
+
+      {selectedWorkout && (
+        <>
+          <ExerciseSelector
+            systemExercises={systemExercises}
+            userExercises={userExercises}
+            onExerciseAdd={handleExerciseAdd}
+          />
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Cviky v tréninku</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {selectedWorkout.exercises.map((exercise, index) => (
+                  <div key={index} className="flex justify-between items-center p-2 bg-gray-100 rounded">
+                    <div>
+                      <h3 className="font-medium">{exercise.name}</h3>
+                      <div className="text-sm text-gray-600">
+                        {exercise.sets.map((set, setIndex) => (
+                          <div key={setIndex}>
+                            Série {setIndex + 1}: {set.weight}kg × {set.reps === 'failure' ? 'do selhání' : set.reps}
+                            {set.type === 'rest_pause' && ` (rest-pause ${set.restPauseSeconds}s)`}
+                            {set.type === 'drop' && set.dropSets && (
+                              <span> + {set.dropSets.map(drop => 
+                                `${drop.weight}kg×${drop.reps}`
+                              ).join(' + ')}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleRemoveExercise(index)}
+                    >
+                      <Trash2Icon className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                {selectedWorkout.exercises.length === 0 && (
+                  <div className="text-center text-gray-500">
+                    Zatím žádné cviky
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   )
 }
