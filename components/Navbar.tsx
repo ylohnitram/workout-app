@@ -1,6 +1,7 @@
 "use client"
 
 import { useAuth } from "@/contexts/AuthContext"
+import { useWorkout } from "@/contexts/WorkoutContext"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 
@@ -8,6 +9,7 @@ const ADMIN_EMAILS = ['mholy1983@gmail.com'];  // seznam admin emailů
 
 export function Navbar() {
   const { user, signOut } = useAuth()
+  const { activeWorkout } = useWorkout()
   const router = useRouter()
 
   const isAdmin = user && ADMIN_EMAILS.includes(user.email);
@@ -24,6 +26,14 @@ export function Navbar() {
             >
               Dashboard
             </button>
+            {activeWorkout && (
+              <button 
+                onClick={() => router.push('/progress')}
+                className="hover:text-gray-600 text-green-600 font-semibold"
+              >
+                Aktivní trénink
+              </button>
+            )}
             {isAdmin && (
               <button 
                 onClick={() => router.push('/admin/exercises')}
