@@ -34,12 +34,18 @@ export function Navbar() {
                 Aktivní trénink
               </button>
             )}
+            <button 
+              onClick={() => router.push('/exercises')}
+              className="hover:text-gray-600"
+            >
+              Moje cviky
+            </button>
             {isAdmin && (
               <button 
                 onClick={() => router.push('/admin/exercises')}
                 className="hover:text-gray-600"
               >
-                Správa cviků
+                Správa systémových cviků
               </button>
             )}
           </div>

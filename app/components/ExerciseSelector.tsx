@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label"
 import { SetType } from '@/types/exercise'
 import { cn } from "@/lib/utils"
 
+const CATEGORIES = ["Prsa", "Záda", "Ramena", "Biceps", "Triceps", "Nohy", "Břicho", "Kardio"];
+
 interface ExerciseSet {
   type: SetType;
   weight: number;
@@ -146,10 +148,38 @@ export function ExerciseSelector({
                 <SelectTrigger>
                   <SelectValue placeholder="Vyberte cvik" />
                 </SelectTrigger>
-                <SelectContent>
-                  {systemExercises.map((exercise) => (
-                    <SelectItem key={exercise._id} value={exercise._id}>{exercise.name}</SelectItem>
-                  ))}
+                <SelectContent className="max-h-[300px]">
+                  {CATEGORIES.map(category => {
+                    const exercises = systemExercises.filter(e => e.category === category);
+                    if (exercises.length === 0) return null;
+                    
+                    return (
+                      <div key={category}>
+                        <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground bg-muted">
+                          {category}
+                        </div>
+                        {exercises.map((exercise) => (
+                          <SelectItem key={exercise._id} value={exercise._id}>
+                            {exercise.name}
+                          </SelectItem>
+                        ))}
+                      </div>
+                    );
+                  })}
+                  {systemExercises.filter(e => !e.category).length > 0 && (
+                    <div>
+                      <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground bg-muted">
+                        Ostatní
+                      </div>
+                      {systemExercises
+                        .filter(e => !e.category)
+                        .map((exercise) => (
+                          <SelectItem key={exercise._id} value={exercise._id}>
+                            {exercise.name}
+                          </SelectItem>
+                        ))}
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
             </TabsContent>
@@ -159,10 +189,38 @@ export function ExerciseSelector({
                 <SelectTrigger>
                   <SelectValue placeholder="Vyberte cvik" />
                 </SelectTrigger>
-                <SelectContent>
-                  {userExercises.map((exercise) => (
-                    <SelectItem key={exercise._id} value={exercise._id}>{exercise.name}</SelectItem>
-                  ))}
+                <SelectContent className="max-h-[300px]">
+                  {CATEGORIES.map(category => {
+                    const exercises = userExercises.filter(e => e.category === category);
+                    if (exercises.length === 0) return null;
+                    
+                    return (
+                      <div key={category}>
+                        <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground bg-muted">
+                          {category}
+                        </div>
+                        {exercises.map((exercise) => (
+                          <SelectItem key={exercise._id} value={exercise._id}>
+                            {exercise.name}
+                          </SelectItem>
+                        ))}
+                      </div>
+                    );
+                  })}
+                  {userExercises.filter(e => !e.category).length > 0 && (
+                    <div>
+                      <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground bg-muted">
+                        Ostatní
+                      </div>
+                      {userExercises
+                        .filter(e => !e.category)
+                        .map((exercise) => (
+                          <SelectItem key={exercise._id} value={exercise._id}>
+                            {exercise.name}
+                          </SelectItem>
+                        ))}
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
             </TabsContent>
