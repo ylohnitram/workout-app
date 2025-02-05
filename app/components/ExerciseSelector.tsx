@@ -49,12 +49,18 @@ export function ExerciseSelector({ systemExercises, userExercises, onExerciseAdd
 
   const handleSetTypeChange = (index: number, type: SetType) => {
     const newSets = [...sets]
+    const currentWeight = newSets[index].weight
+
     newSets[index] = {
       ...newSets[index],
       type,
-      // Reset specifických polí podle typu
+      // Pro drop série přesuneme aktuální váhu do prvního drop setu
+      weight: type === SetType.DROP ? 0 : currentWeight,
       restPauseSeconds: type === SetType.REST_PAUSE ? 5 : undefined,
-      dropSets: type === SetType.DROP ? [{ weight: 0 }, { weight: 0 }] : undefined
+      dropSets: type === SetType.DROP ? [
+        { weight: currentWeight }, // První váha zůstane zachována
+        { weight: 0 } // Druhá váha defaultně 0
+      ] : undefined
     }
     setSets(newSets)
   }
@@ -74,6 +80,7 @@ export function ExerciseSelector({ systemExercises, userExercises, onExerciseAdd
     const newSets = [...sets]
     const currentSet = newSets[setIndex]
     if (currentSet.type === SetType.DROP) {
+      // Zachováme existující váhy a doplníme nové s nulovou váhou
       currentSet.dropSets = Array(count).fill(null).map((_, i) => (
         currentSet.dropSets?.[i] || { weight: 0 }
       ))
@@ -195,14 +202,17 @@ export function ExerciseSelector({ systemExercises, userExercises, onExerciseAdd
                     </Select>
                   </div>
 
-                  <div className="grid gap-2">
-                    <Label>Váha (kg)</Label>
-                    <Input
-                      type="number"
-                      value={set.weight || ""}
-                      onChange={(e) => handleSetChange(setIndex, 'weight', e.target.value)}
-                    />
-                  </div>
+                  {/* Váha se zobrazí pouze pro normální a rest-pause série */}
+                  {set.type !== SetType.DROP && (
+                    <div className="grid gap-2">
+                      <Label>Váha (kg)</Label>
+                      <Input
+                        type="number"
+                        value={set.weight || ""}
+                        onChange={(e) => handleSetChange(setIndex, 'weight', e.target.value)}
+                      />
+                    </div>
+                  )}
 
                   {set.type === SetType.REST_PAUSE && (
                     <div className="grid gap-2">
