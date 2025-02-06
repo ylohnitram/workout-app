@@ -23,6 +23,7 @@ export interface Exercise {
   category?: string;  
   description?: string;
   isSystem: boolean;  
+  userId?: string;    // Přidáno pro uživatelské cviky
   createdAt?: Date;
   updatedAt?: Date;
 }

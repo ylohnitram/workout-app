@@ -228,7 +228,6 @@ export default function WorkoutEditor() {
 
   return (
     <div className="space-y-4">
-      {/* Karta pro vytvoření nového tréninku */}
       <Card>
         <CardHeader>
           <CardTitle>Vytvořit nový trénink</CardTitle>
@@ -246,7 +245,6 @@ export default function WorkoutEditor() {
         </CardContent>
       </Card>
 
-      {/* Karta pro výběr tréninku */}
       <Card>
         <CardHeader>
           <CardTitle>Vybrat trénink</CardTitle>
@@ -298,7 +296,6 @@ export default function WorkoutEditor() {
         </CardContent>
       </Card>
 
-      {/* Seznam cviků s DnD a editací */}
       {selectedWorkout && (
         <>
           <DndContext
@@ -322,7 +319,6 @@ export default function WorkoutEditor() {
             </SortableContext>
           </DndContext>
 
-          {/* Dialog pro editaci cviku */}
           <Dialog open={editingExerciseIndex !== null} onOpenChange={() => setEditingExerciseIndex(null)}>
             <DialogContent className="max-w-2xl">
               {editingExerciseIndex !== null && selectedWorkout && (
@@ -338,7 +334,6 @@ export default function WorkoutEditor() {
             </DialogContent>
           </Dialog>
 
-          {/* Selektor pro přidávání nových cviků */}
           <ExerciseSelector
             systemExercises={systemExercises}
             userExercises={userExercises}
