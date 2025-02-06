@@ -2,273 +2,238 @@
 
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Loader2, PlusCircle, Edit2Icon, Trash2Icon } from "lucide-react"
+import { Trash2Icon, Edit2Icon, PlusCircle } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 
+const ADMIN_EMAILS = ['mholy1983@gmail.com']  // seznam admin emailů
+const CATEGORIES = ["Prsa", "Záda", "Ramena", "Biceps", "Triceps", "Nohy", "Břicho", "Kardio"]
+
 interface Exercise {
-  _id?: string;
-  name: string;
-  category?: string;
-  description?: string;
-  videoUrl?: string;
-  muscleGroups?: string[];
+  _id?: string
+  name: string
+  category?: string
+  description?: string
 }
 
-const CATEGORIES = ["Prsa", "Záda", "Ramena", "Biceps", "Triceps", "Nohy", "Břicho", "Kardio"];
-
-function ExerciseForm({ 
+function ExerciseForm({
   exercise,
   onSubmit,
-  isSubmitting 
-}: { 
-  exercise?: Exercise;
-  onSubmit: (exercise: Exercise) => Promise<void>;
-  isSubmitting: boolean;
+  onCancel
+}: {
+  exercise?: Exercise
+  onSubmit: (exercise: Exercise) => void
+  onCancel: () => void
 }) {
-  const [formData, setFormData] = useState<Exercise>(
-    exercise || {
-      name: "",
-      category: "",
-      description: "",
-      videoUrl: "",
-      muscleGroups: []
-    }
-  );
+  const [formData, setFormData] = useState<Exercise>(exercise || {
+    name: "",
+    category: "",
+    description: ""
+  })
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
+    e.preventDefault()
+    onSubmit(formData)
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <DialogHeader>
-        <DialogTitle>
-          {exercise ? 'Upravit cvik' : 'Nový cvik'}
-        </DialogTitle>
-        <DialogDescription>
-          Vyplňte detaily cviku. Pole označená * jsou povinná.
-        </DialogDescription>
-      </DialogHeader>
-
-      <div className="space-y-4">
-        <div>
-          <label className="block mb-2">
-            Název cviku *
-            <Input
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-            />
-          </label>
-        </div>
-
-        <div>
-          <label className="block mb-2">
-            Kategorie
-            <Select
-              value={formData.category}
-              onValueChange={(value) => setFormData({ ...formData, category: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Vyberte kategorii" />
-              </SelectTrigger>
-              <SelectContent>
-                {CATEGORIES.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
-        </div>
-
-        <div>
-          <label className="block mb-2">
-            Popis
-            <Textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={3}
-            />
-          </label>
-        </div>
-
-        <div>
-          <label className="block mb-2">
-            YouTube URL
-            <Input
-              type="url"
-              value={formData.videoUrl}
-              onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
-              placeholder="https://www.youtube.com/watch?v=..."
-            />
-          </label>
-        </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Název cviku *</label>
+        <Input
+          required
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+        />
       </div>
 
-      <DialogFooter>
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-          {exercise ? 'Upravit' : 'Vytvořit'} cvik
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Kategorie</label>
+        <Select
+          value={formData.category}
+          onValueChange={(value) => setFormData({ ...formData, category: value })}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Vyberte kategorii" />
+          </SelectTrigger>
+          <SelectContent>
+            {CATEGORIES.map((category) => (
+              <SelectItem key={category} value={category}>{category}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Popis</label>
+        <Textarea
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          placeholder="Popis cviku, provedení, tipy..."
+        />
+      </div>
+
+      <div className="flex justify-end space-x-2 pt-4">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Zrušit
         </Button>
-      </DialogFooter>
+        <Button type="submit">
+          {exercise ? "Upravit" : "Přidat"} cvik
+        </Button>
+      </div>
     </form>
-  );
+  )
 }
 
-export default function AdminExercises() {
+export default function AdminExercisesPage() {
   const { user } = useAuth()
   const router = useRouter()
   const [exercises, setExercises] = useState<Exercise[]>([])
-  const [isAdmin, setIsAdmin] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const [showAddDialog, setShowAddDialog] = useState(false)
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const fetchExercises = async () => {
+    const init = async () => {
       if (!user) {
-        console.log('No user, redirecting to login');
         router.push('/login')
         return
       }
-      
-      try {
-        console.log('Fetching exercises with token...');
-        const token = await user.getIdToken();
-        const response = await fetch('/api/admin/exercises', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
 
-        console.log('Response status:', response.status);
-        if (response.ok) {
-          const result = await response.json();
-          console.log('Fetched data:', result);
-          const { data, isAdmin } = result;
-          setExercises(data || []);
-          setIsAdmin(isAdmin);
-          if (!isAdmin) {
-            console.log('Not admin, redirecting to home');
-            router.push('/')
-          }
-        } else {
-          console.log('Response not OK, redirecting to home');
-          router.push('/')
-        }
-      } catch (error) {
-        console.error('Failed to fetch exercises:', error);
+      if (!ADMIN_EMAILS.includes(user.email || '')) {
         router.push('/')
-      } finally {
-        setIsLoading(false);
+        return
       }
-    };
 
-    fetchExercises();
-  }, [user, router]);
+      await fetchExercises()
+    }
 
-  const handleSubmit = async (exercise: Exercise) => {
-    if (!user) return;
-    
-    setIsSubmitting(true);
+    init()
+  }, [user, router])
+
+  const fetchExercises = async () => {
     try {
-      const token = await user.getIdToken();
-      const exerciseData = {
-        ...exercise,
-        isSystem: true
-      };
-      console.log('Sending exercise data:', exerciseData);
-      
-      const url = exercise._id 
-        ? `/api/admin/exercises/${exercise._id}`
-        : '/api/admin/exercises';
-      
-      const response = await fetch(url, {
-        method: exercise._id ? 'PUT' : 'POST',
+      const token = await user!.getIdToken()
+      const response = await fetch('/api/admin/exercises', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        setExercises(result.data || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch exercises:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleAddExercise = async (exerciseData: Exercise) => {
+    try {
+      const token = await user!.getIdToken()
+      const response = await fetch('/api/admin/exercises', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ...exerciseData,
+          isSystem: true
+        })
+      })
+
+      if (response.ok) {
+        await fetchExercises()
+        setShowAddDialog(false)
+      }
+    } catch (error) {
+      console.error('Failed to add exercise:', error)
+    }
+  }
+
+  const handleEditExercise = async (exerciseData: Exercise) => {
+    if (!editingExercise?._id) return
+
+    try {
+      const token = await user!.getIdToken()
+      const response = await fetch(`/api/admin/exercises/${editingExercise._id}`, {
+        method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(exerciseData)
-      });
-
-      console.log('Response status:', response.status);
-      const result = await response.json();
-      console.log('Server response:', result);
+      })
 
       if (response.ok) {
-        if (exercise._id) {
-          setExercises(exercises.map(e => 
-            e._id === exercise._id ? result : e
-          ));
-        } else {
-          setExercises([...exercises, result]);
-        }
-        setEditingExercise(null);
+        await fetchExercises()
+        setEditingExercise(null)
       }
     } catch (error) {
-      console.error('Failed to save exercise:', error);
-    } finally {
-      setIsSubmitting(false);
+      console.error('Failed to update exercise:', error)
     }
-  };
+  }
 
-  const handleDelete = async (id: string) => {
-    if (!user || !confirm('Opravdu chcete smazat tento cvik?')) return;
-
+  const handleDeleteExercise = async (id: string) => {
     try {
-      const token = await user.getIdToken();
+      const token = await user!.getIdToken()
       const response = await fetch(`/api/admin/exercises/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
         }
-      });
+      })
 
       if (response.ok) {
-        setExercises(exercises.filter(e => e._id !== id));
+        await fetchExercises()
       }
     } catch (error) {
-      console.error('Failed to delete exercise:', error);
+      console.error('Failed to delete exercise:', error)
     }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
   }
 
-  if (!isAdmin) {
-    return null;
+  if (isLoading) {
+    return <div className="container mx-auto p-4">Načítám...</div>
   }
 
   return (
     <div className="container mx-auto p-4">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Správa systémových cviků</h1>
-        <Dialog>
+        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
             <Button>
               <PlusCircle className="h-4 w-4 mr-2" />
-              Nový cvik
+              Přidat cvik
             </Button>
           </DialogTrigger>
           <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Nový systémový cvik</DialogTitle>
+            </DialogHeader>
             <ExerciseForm
-              onSubmit={handleSubmit}
-              isSubmitting={isSubmitting}
+              onSubmit={handleAddExercise}
+              onCancel={() => setShowAddDialog(false)}
             />
           </DialogContent>
         </Dialog>
@@ -277,40 +242,61 @@ export default function AdminExercises() {
       <div className="grid gap-4">
         {exercises.map((exercise) => (
           <Card key={exercise._id}>
-            <CardContent className="flex justify-between items-center p-4">
+            <CardContent className="flex justify-between items-start p-4">
               <div>
                 <h3 className="font-semibold">{exercise.name}</h3>
                 {exercise.category && (
                   <p className="text-sm text-gray-500">{exercise.category}</p>
                 )}
+                {exercise.description && (
+                  <p className="text-sm text-gray-600 mt-1">{exercise.description}</p>
+                )}
               </div>
-              <div className="flex space-x-2">
-                <Dialog>
+              <div className="flex space-x-2 ml-4">
+                <Dialog open={editingExercise?._id === exercise._id} onOpenChange={(open) => !open && setEditingExercise(null)}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={() => setEditingExercise(exercise)}>
                       <Edit2Icon className="h-4 w-4" />
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Upravit systémový cvik</DialogTitle>
+                    </DialogHeader>
                     <ExerciseForm
                       exercise={exercise}
-                      onSubmit={handleSubmit}
-                      isSubmitting={isSubmitting}
+                      onSubmit={handleEditExercise}
+                      onCancel={() => setEditingExercise(null)}
                     />
                   </DialogContent>
                 </Dialog>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => exercise._id && handleDelete(exercise._id)}
-                >
-                  <Trash2Icon className="h-4 w-4" />
-                </Button>
+
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm">
+                      <Trash2Icon className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Opravdu chcete smazat tento cvik?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Tato akce je nevratná. Cvik bude odstraněn ze všech tréninků.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDeleteExercise(exercise._id!)}>
+                        Smazat
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
     </div>
-  );
+  )
 }
