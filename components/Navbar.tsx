@@ -5,7 +5,7 @@ import { useWorkout } from "@/contexts/WorkoutContext"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 
-const ADMIN_EMAILS = ['mholy1983@gmail.com'];  // seznam admin emailů
+const ADMIN_EMAILS = ['mholy1983@gmail.com']
 
 export function Navbar() {
   const { user, signOut } = useAuth()
@@ -15,7 +15,7 @@ export function Navbar() {
   const isAdmin = user && ADMIN_EMAILS.includes(user.email);
 
   return (
-    <nav className="border-b">
+    <nav className="sticky top-0 z-50 bg-background border-b shadow-sm">
       <div className="container mx-auto px-4 py-3">
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-8">
