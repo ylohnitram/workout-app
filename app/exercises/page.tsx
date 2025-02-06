@@ -22,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Trash2Icon, Edit2Icon, PlusCircle } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 
-const CATEGORIES = ["Prsa", "Záda", "Ramena", "Biceps", "Triceps", "Nohy", "Břicho", "Kardio"];
+const CATEGORIES = ["Prsa", "Záda", "Ramena", "Biceps", "Triceps", "Nohy", "Břicho", "Kardio"]
 
 interface Exercise {
   _id?: string;
@@ -31,11 +31,11 @@ interface Exercise {
   description?: string;
 }
 
-function ExerciseForm({ 
-  exercise, 
-  onSubmit, 
-  onCancel 
-}: { 
+function ExerciseForm({
+  exercise,
+  onSubmit,
+  onCancel
+}: {
   exercise?: Exercise;
   onSubmit: (data: Exercise) => void;
   onCancel: () => void;
@@ -135,7 +135,7 @@ export default function ExercisesPage() {
   const handleAddExercise = async (exerciseData: Exercise) => {
     try {
       const token = await user!.getIdToken()
-      console.log('Sending exercise data:', exerciseData);  // Debug log
+      console.log('Sending exercise data:', exerciseData)
 
       const response = await fetch('/api/exercises', {
         method: 'POST',
@@ -145,9 +145,20 @@ export default function ExercisesPage() {
         },
         body: JSON.stringify({
           ...exerciseData,
-          isSystem: false  // Explicitně nastavíme isSystem na false pro uživatelské cviky
+          isSystem: false
         })
       })
+
+      if (response.ok) {
+        const newExercise = await response.json()
+        setExercises([...exercises, newExercise])
+        setShowAddDialog(false)
+      } else {
+        const error = await response.json()
+        console.error('Failed to add exercise:', error)
+      }
+    } catch (error) {
+      console.error('Failed to add exercise:', error)
     }
   }
 
@@ -167,7 +178,7 @@ export default function ExercisesPage() {
 
       if (response.ok) {
         const updatedExercise = await response.json()
-        setExercises(exercises.map(ex => 
+        setExercises(exercises.map(ex =>
           ex._id === updatedExercise._id ? updatedExercise : ex
         ))
         setEditingExercise(null)
