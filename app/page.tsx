@@ -7,39 +7,7 @@ import WeekPlanner from "./components/WeekPlanner"
 import WorkoutEditor from "./components/WorkoutEditor"
 import WorkoutExecution from "./components/WorkoutExecution"
 import WorkoutHistory from "./components/WorkoutHistory"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
-import { format } from "date-fns"
-import { cs } from "date-fns/locale"
-
-function CurrentDate() {
-  return (
-    <div className="text-muted-foreground">
-      {format(new Date(), "EEEE d. MMMM yyyy", { locale: cs })}
-    </div>
-  )
-}
-
-function TodayProgress({ value }: { value: number }) {
-  return (
-    <Card className="col-span-full">
-      <CardHeader>
-        <div className="flex justify-between items-center">
-          <CardTitle>Dnešní progres</CardTitle>
-          <CurrentDate />
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          <Progress value={value} />
-          <div className="flex justify-end text-sm text-muted-foreground">
-            {Math.round(value)}%
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
+import { TodayProgress } from "./components/TodayProgress"
 
 export default function Home() {
   const { user } = useAuth()
@@ -63,7 +31,7 @@ export default function Home() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* První sloupec */}
         <div className="space-y-6">
-          <TodayProgress value={75} />
+          <TodayProgress />
           <div>
             <h2 className="text-2xl font-semibold mb-4">Týdenní plán</h2>
             <WeekPlanner />
