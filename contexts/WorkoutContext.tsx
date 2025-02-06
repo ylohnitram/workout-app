@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useAuth } from './AuthContext';
 import { SetType } from '@/types/exercise';
 import { workoutStorage, formatWorkoutForStorage } from '@/lib/workoutStorage';
+import { toast } from 'sonner';
 
 export const WORKOUT_DEFAULTS = {
   NONE: 'none',
@@ -487,10 +488,13 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const endWorkout = async () => {
     if (!activeWorkout || !user) return;
 
+    const endToast = toast.loading('Ukládám trénink...');
+
     try {
       const token = await user.getIdToken();
-      // Označíme trénink jako neaktivní
-      await fetch('/api/workout-progress', {
+    
+      // Nejdřív označíme workout jako neaktivní v workout-progress
+      const progressResponse = await fetch('/api/workout-progress', {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -504,8 +508,12 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         })
       });
 
-      // Uložíme log tréninku
-      await fetch('/api/workout-logs', {
+      if (!progressResponse.ok) {
+        throw new Error('Nepodařilo se uložit průběh tréninku');
+      }
+
+      // Vytvoříme log dokončeného tréninku
+      const logResponse = await fetch('/api/workout-logs', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -516,17 +524,42 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
           startTime: activeWorkout.startTime,
           endTime: new Date(),
           duration: workoutTimer,
-          exercises: activeWorkout.exercises
+          exercises: activeWorkout.exercises.map(exercise => ({
+            exerciseId: exercise.exerciseId,
+            isSystem: exercise.isSystem,
+            name: exercise.name,
+            sets: exercise.sets.map(set => ({
+              ...set,
+              completedAt: set.completedAt || new Date()
+            })),
+            progress: exercise.progress
+          }))
         })
       });
+
+      if (!logResponse.ok) {
+        const errorData = await logResponse.json();
+        throw new Error(errorData.error || 'Nepodařilo se uložit záznam tréninku');
+      }
 
       // Vyčistíme localStorage
       workoutStorage.clear();
 
       setActiveWorkout(null);
       setWorkoutTimer(0);
+
+      toast.success('Trénink byl úspěšně uložen', {
+        id: endToast,
+        description: `Dokončeno ${activeWorkout.exercises.reduce(
+          (total, ex) => total + ex.sets.filter(s => s.isCompleted).length, 0
+        )} sérií | ${Math.round(activeWorkout.progress)}% tréninku`
+      });
     } catch (error) {
       console.error('Failed to end workout:', error);
+      toast.error('Chyba při ukládání tréninku', {
+        id: endToast,
+        description: error instanceof Error ? error.message : 'Neznámá chyba'
+      });
     }
   };
 

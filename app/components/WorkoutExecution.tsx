@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useWorkout } from "../../contexts/WorkoutContext"
+import { useWorkout } from "@/contexts/WorkoutContext"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Dumbbell } from "lucide-react"
@@ -13,23 +13,13 @@ export default function WorkoutExecution() {
 
   const handleStartWorkout = (workoutId: string) => {
     startWorkout(workoutId)
-    router.push("/progress")
+    router.push("/progress")  // Okamžité přesměrování
   }
 
+  // Pokud je aktivní trénink, přímo přesměrujeme na stránku s progresem
   if (activeWorkout) {
-    return (
-      <Card>
-        <CardContent className="py-6">
-          <div className="text-center">
-            <p className="text-gray-500 mb-4">Máte aktivní trénink</p>
-            <Button onClick={() => router.push("/progress")}>
-              <Dumbbell className="w-4 h-4 mr-2" />
-              Pokračovat v tréninku
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    )
+    router.push("/progress")
+    return null  // Vrátíme null, protože stejně budeme přesměrováni
   }
 
   return (
