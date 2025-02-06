@@ -1,14 +1,17 @@
 "use client"
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { SetType } from '@/types/exercise';
+import { workoutStorage, formatWorkoutForStorage } from '@/lib/workoutStorage';
 
 export const WORKOUT_DEFAULTS = {
   NONE: 'none',
   DEFAULT: 'default',
   NO_WORKOUTS: 'no-workouts'
 } as const;
+
+const SAVE_INTERVAL = 2 * 60 * 1000; // 2 minuty
 
 // Základní typy pro cvičení
 interface DropSet {
@@ -43,6 +46,7 @@ interface ActiveWorkoutSet extends ExerciseSet {
   isCompleted: boolean;
   actualWeight?: number;
   actualReps?: number;
+  completedAt?: Date;
 }
 
 interface ActiveWorkoutExercise extends Omit<WorkoutExercise, 'sets'> {
@@ -58,15 +62,12 @@ interface ActiveWorkout {
 }
 
 interface WorkoutContextType {
-  // Základní funkce pro správu workoutů
   workouts: Workout[];
   addWorkout: (workout: Workout) => Promise<void>;
   updateWorkout: (id: string, workout: Workout) => Promise<void>;
   deleteWorkout: (id: string) => Promise<void>;
   selectedWorkout: Workout | null;
   setSelectedWorkout: (workout: Workout | null) => void;
-  
-  // Funkce pro tracking workoutu
   activeWorkout: ActiveWorkout | null;
   startWorkout: (workoutId: string) => void;
   completeSet: (exerciseIndex: number, setIndex: number, performance?: {
@@ -83,25 +84,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
   const [activeWorkout, setActiveWorkout] = useState<ActiveWorkout | null>(null);
   const [workoutTimer, setWorkoutTimer] = useState<number>(0);
+  const [lastSaveTime, setLastSaveTime] = useState<number>(Date.now());
   const { user } = useAuth();
-
-  // Timer effect pro aktivní workout
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
-    if (activeWorkout) {
-      interval = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - activeWorkout.startTime.getTime()) / 1000);
-        setWorkoutTimer(elapsed);
-      }, 1000);
-    }
-
-    return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-    };
-  }, [activeWorkout]);
 
   const fetchWorkouts = async () => {
     if (!user) return;
@@ -121,8 +105,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       }
 
       const result = await response.json();
-      console.log('Raw API response:', result);
-
       const workoutsData = result.data || [];
       if (Array.isArray(workoutsData)) {
         const processedWorkouts = workoutsData.map(workout => ({
@@ -138,7 +120,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
           })) : []
         }));
         
-        console.log('Processed workouts:', processedWorkouts);
         setWorkouts(processedWorkouts);
       } else {
         console.error('Unexpected data format:', result);
@@ -150,6 +131,38 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Timer effect pro aktivní workout
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (activeWorkout) {
+      interval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - activeWorkout.startTime.getTime()) / 1000);
+        setWorkoutTimer(elapsed);
+      }, 1000);
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [activeWorkout]);
+
+  // Automatické ukládání průběhu
+  useEffect(() => {
+    if (!activeWorkout) return;
+
+    const saveInterval = setInterval(() => {
+      if (activeWorkout && Date.now() - lastSaveTime >= SAVE_INTERVAL) {
+        saveWorkoutProgress(activeWorkout);
+      }
+    }, SAVE_INTERVAL);
+
+    return () => clearInterval(saveInterval);
+  }, [activeWorkout, lastSaveTime]);
+
+  // Načtení workoutů při přihlášení
   useEffect(() => {
     let isMounted = true;
 
@@ -174,6 +187,91 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user]);
 
+  // Načtení uloženého průběhu při startu
+  useEffect(() => {
+    const loadSavedProgress = async () => {
+      if (!user) return;
+
+      try {
+        // Nejprve zkusíme načíst z localStorage
+        const localWorkout = workoutStorage.load();
+        
+        if (localWorkout) {
+          setActiveWorkout({
+            workoutId: localWorkout.workoutId,
+            startTime: new Date(localWorkout.startTime),
+            exercises: localWorkout.exercises,
+            progress: localWorkout.progress
+          });
+          return;
+        }
+
+        // Pokud není v localStorage, zkusíme z databáze
+        const token = await user.getIdToken();
+        const response = await fetch('/api/workout-progress', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const { data } = await response.json();
+          if (data) {
+            setActiveWorkout({
+              workoutId: data.workoutId,
+              startTime: new Date(data.startTime),
+              exercises: data.exercises,
+              progress: data.progress
+            });
+            // Uložíme i do localStorage
+            workoutStorage.save(data);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading saved workout progress:', error);
+      }
+    };
+
+    loadSavedProgress();
+  }, [user]);
+
+  const saveWorkoutProgress = async (workout: ActiveWorkout) => {
+    if (!user || !workout) return;
+
+    try {
+      const token = await user.getIdToken();
+      const workoutData = formatWorkoutForStorage(
+        user.uid,
+        workout.workoutId,
+        workout.startTime,
+        workout.exercises,
+        workout.progress
+      );
+
+      // Uložení do localStorage
+      workoutStorage.save(workoutData);
+
+      // Uložení do databáze
+      const response = await fetch('/api/workout-progress', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(workoutData)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save workout progress');
+      }
+
+      setLastSaveTime(Date.now());
+      console.log('Workout progress saved successfully');
+    } catch (error) {
+      console.error('Error saving workout progress:', error);
+    }
+  };
+
   const addWorkout = async (workout: Workout) => {
     if (!user) return;
     
@@ -189,8 +287,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         exercises: workout.exercises || []
       };
       
-      console.log('Sending workout:', JSON.stringify(workoutData, null, 2));
-
       const response = await fetch('/api/workouts', {
         method: 'POST',
         headers: {
@@ -207,7 +303,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       }
 
       const result = await response.json();
-      console.log('Server response:', JSON.stringify(result, null, 2));
 
       if (!result._id) {
         console.error('Invalid server response - missing required fields:', result);
@@ -235,8 +330,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         name: workout.name.trim()
       };
       
-      console.log('Updating workout:', JSON.stringify(workoutData, null, 2));
-      
       const response = await fetch(`/api/workouts/${id}`, {
         method: 'PUT',
         headers: {
@@ -254,7 +347,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
 
       await fetchWorkouts();
       
-      // Aktualizujeme selectedWorkout, pokud byl upravován
       if (selectedWorkout?._id === id) {
         const updatedWorkout = await response.json();
         setSelectedWorkout(updatedWorkout);
@@ -292,26 +384,62 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Funkce pro tracking workoutu
-  const startWorkout = (workoutId: string) => {
+  const startWorkout = async (workoutId: string) => {
+    if (!user) return;
+
     const workout = workouts.find(w => w._id === workoutId);
     if (!workout) return;
 
-    const activeWorkoutExercises: ActiveWorkoutExercise[] = workout.exercises.map(exercise => ({
-      ...exercise,
-      sets: exercise.sets.map(set => ({
-        ...set,
-        isCompleted: false
-      })),
-      progress: 0
-    }));
-
-    setActiveWorkout({
+    const newActiveWorkout: ActiveWorkout = {
       workoutId,
       startTime: new Date(),
-      exercises: activeWorkoutExercises,
+      exercises: workout.exercises.map(exercise => ({
+        ...exercise,
+        sets: exercise.sets.map(set => ({
+          ...set,
+          isCompleted: false
+        })),
+        progress: 0
+      })),
       progress: 0
-    });
+    };
+
+    try {
+      const token = await user.getIdToken();
+      // Uložíme do databáze
+      const response = await fetch('/api/workout-progress', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formatWorkoutForStorage(
+          user.uid,
+          workoutId,
+          newActiveWorkout.startTime,
+          newActiveWorkout.exercises,
+          newActiveWorkout.progress
+        ))
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save initial workout progress');
+      }
+
+      // Uložíme do localStorage
+      workoutStorage.save(formatWorkoutForStorage(
+        user.uid,
+        workoutId,
+        newActiveWorkout.startTime,
+        newActiveWorkout.exercises,
+        newActiveWorkout.progress
+      ));
+
+      setActiveWorkout(newActiveWorkout);
+      setLastSaveTime(Date.now());
+    } catch (error) {
+      console.error('Error starting workout:', error);
+    }
   };
 
   const completeSet = (exerciseIndex: number, setIndex: number, performance?: {
@@ -328,28 +456,31 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       
       if (!exercise) return prev;
 
-      // Označit sérii jako dokončenou
       exercise.sets[setIndex] = {
         ...exercise.sets[setIndex],
         isCompleted: true,
         actualWeight: performance?.weight,
-        actualReps: performance?.reps
+        actualReps: performance?.reps,
+        completedAt: new Date()
       };
 
-      // Přepočítat progress cviku
       const completedSets = exercise.sets.filter(s => s.isCompleted).length;
       exercise.progress = (completedSets / exercise.sets.length) * 100;
 
-      // Přepočítat celkový progress
       const totalSets = newExercises.reduce((total, ex) => total + ex.sets.length, 0);
       const totalCompletedSets = newExercises.reduce((total, ex) => 
         total + ex.sets.filter(s => s.isCompleted).length, 0);
       
-      return {
+      const newWorkout = {
         ...prev,
         exercises: newExercises,
         progress: (totalCompletedSets / totalSets) * 100
       };
+
+      // Okamžitě uložíme změnu
+      saveWorkoutProgress(newWorkout);
+
+      return newWorkout;
     });
   };
 
@@ -358,6 +489,22 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const token = await user.getIdToken();
+      // Označíme trénink jako neaktivní
+      await fetch('/api/workout-progress', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          workoutId: activeWorkout.workoutId,
+          exercises: activeWorkout.exercises,
+          progress: activeWorkout.progress,
+          isActive: false
+        })
+      });
+
+      // Uložíme log tréninku
       await fetch('/api/workout-logs', {
         method: 'POST',
         headers: {
@@ -373,10 +520,13 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         })
       });
 
+      // Vyčistíme localStorage
+      workoutStorage.clear();
+
       setActiveWorkout(null);
       setWorkoutTimer(0);
     } catch (error) {
-      console.error('Failed to save workout log:', error);
+      console.error('Failed to end workout:', error);
     }
   };
 
