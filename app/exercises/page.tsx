@@ -135,22 +135,19 @@ export default function ExercisesPage() {
   const handleAddExercise = async (exerciseData: Exercise) => {
     try {
       const token = await user!.getIdToken()
+      console.log('Sending exercise data:', exerciseData);  // Debug log
+
       const response = await fetch('/api/exercises', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(exerciseData)
+        body: JSON.stringify({
+          ...exerciseData,
+          isSystem: false  // Explicitně nastavíme isSystem na false pro uživatelské cviky
+        })
       })
-
-      if (response.ok) {
-        const newExercise = await response.json()
-        setExercises([...exercises, newExercise])
-        setShowAddDialog(false)
-      }
-    } catch (error) {
-      console.error('Failed to add exercise:', error)
     }
   }
 
