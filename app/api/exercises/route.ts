@@ -22,10 +22,18 @@ export async function GET(req: Request) {
 
     const isAdmin = await checkIsAdmin(userEmail);
     const query = isAdmin 
-      ? { isSystem: true }
-      : { userId, isSystem: false };
+      ? { 
+          $or: [
+            { isSystem: true },             // Systémové cviky
+            { userId: userId }              // Plus vlastní cviky uživatele
+          ]
+        }
+      : { userId, isSystem: false };        // Pro běžné uživatele jen jejich vlastní cviky
 
+    console.log('Fetching exercises with query:', query);
     const exercises = await ExerciseModel.find(query).sort({ name: 1 });
+    console.log('Found exercises:', exercises);
+
     return NextResponse.json({ data: exercises });
   } catch (error) {
     console.error('Exercise fetch error:', error);
