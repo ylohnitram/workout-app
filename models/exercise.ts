@@ -3,46 +3,10 @@ import type { Exercise as ExerciseType } from '@/types/exercise';
 import { SetType } from '@/types/exercise';
 
 export interface IExercise extends ExerciseType, Document {
-  userId?: string;  // Pro identifikaci vlastníka cviku
+  userId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
-
-const DropSetSchema = new Schema({
-  weight: {
-    type: Number,
-    required: true
-  },
-  reps: {
-    type: Number,
-    required: true
-  }
-});
-
-const ExerciseSetSchema = new Schema({
-  type: {
-    type: String,
-    enum: Object.values(SetType),
-    required: true,
-    default: SetType.NORMAL
-  },
-  weight: {
-    type: Number,
-    required: true
-  },
-  reps: {
-    type: Schema.Types.Mixed,
-    required: true
-  },
-  restPauseSeconds: {
-    type: Number,
-    required: false
-  },
-  dropSets: {
-    type: [DropSetSchema],
-    required: false
-  }
-});
 
 const ExerciseSchema = new Schema<IExercise>({
   name: {
@@ -64,33 +28,33 @@ const ExerciseSchema = new Schema<IExercise>({
   },
   userId: {
     type: String,
-    required: function() {
-      return !this.isSystem;  // userId je povinný pouze pro uživatelské cviky
-    },
-    index: true
+    required: function(this: { isSystem: boolean }) {
+      return !this.isSystem;  // userId je povinné jen pro uživatelské cviky
+    }
   }
 }, {
   timestamps: true
 });
 
-// Index pro rychlejší vyhledávání
+// Indexy pro rychlejší vyhledávání
 ExerciseSchema.index({ userId: 1, isSystem: 1 });
 ExerciseSchema.index({ name: 1 });
 
-// Unikátní index pro kombinaci jména a userId (nebo isSystem)
+// Unikátní index pro uživatelské cviky (kombinace jména a userId)
 ExerciseSchema.index(
   { name: 1, userId: 1 }, 
   { 
     unique: true,
-    partialFilterExpression: { isSystem: false }  // Aplikuje se jen na uživatelské cviky
+    partialFilterExpression: { isSystem: false }
   }
 );
 
+// Unikátní index pro systémové cviky (jen podle jména)
 ExerciseSchema.index(
   { name: 1 },
   {
     unique: true,
-    partialFilterExpression: { isSystem: true }  // Aplikuje se jen na systémové cviky
+    partialFilterExpression: { isSystem: true }
   }
 );
 
