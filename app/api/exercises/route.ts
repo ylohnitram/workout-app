@@ -20,17 +20,12 @@ export async function GET(req: Request) {
 
     await connectDB();
 
-    // Pokud je admin, vrátíme všechny systémové cviky
-    // Pokud není admin, vrátíme jen jeho vlastní cviky
     const isAdmin = await checkIsAdmin(userEmail);
     const query = isAdmin 
       ? { isSystem: true }
       : { userId, isSystem: false };
 
-    console.log('Fetching exercises with query:', query);  // Debug log
     const exercises = await ExerciseModel.find(query).sort({ name: 1 });
-    console.log('Found exercises:', exercises);  // Debug log
-
     return NextResponse.json({ data: exercises });
   } catch (error) {
     console.error('Exercise fetch error:', error);
@@ -56,8 +51,6 @@ export async function POST(req: Request) {
     await connectDB();
 
     const data = await req.json();
-    console.log('Received exercise data:', data);  // Debug log
-
     if (!data.name) {
       return NextResponse.json(
         { error: 'Exercise name is required' },
@@ -65,39 +58,29 @@ export async function POST(req: Request) {
       );
     }
 
-    // Pokud není admin, nemůže vytvářet systémové cviky
     const isAdmin = await checkIsAdmin(userEmail);
-    if (data.isSystem && !isAdmin) {
-      return NextResponse.json(
-        { error: 'Unauthorized to create system exercises' },
-        { status: 403 }
-      );
-    }
-
-    // Pro běžné uživatele nastavíme userId a isSystem: false
+    
+    // Sestavíme data pro vytvoření cviku
     const exerciseData = {
-      ...data,
-      userId: isAdmin ? undefined : userId,
-      isSystem: isAdmin ? data.isSystem : false
+      name: data.name,
+      category: data.category,
+      description: data.description,
+      isSystem: isAdmin ? data.isSystem : false,
+      // Pro uživatelské cviky vždy přidáme userId
+      ...((!isAdmin || !data.isSystem) && { userId })
     };
 
-    console.log('Creating exercise with data:', exerciseData);  // Debug log
+    console.log('Creating exercise with data:', exerciseData);
 
     const exercise = await ExerciseModel.create(exerciseData);
-    console.log('Created exercise:', exercise);  // Debug log
-
     return NextResponse.json(exercise);
   } catch (error) {
     console.error('Error saving exercise:', error);
-    // Vylepšené error hlášení
-    if (error instanceof Error) {
-      return NextResponse.json(
-        { error: 'Failed to save exercise', message: error.message },
-        { status: 500 }
-      );
-    }
     return NextResponse.json(
-      { error: 'Failed to save exercise' },
+      { 
+        error: 'Failed to save exercise', 
+        message: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
