@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
 import { auth } from '@/lib/firebase-admin';
 import { ExerciseModel } from '@/models/exercise';
-import { checkIsAdmin } from '@/lib/adminAuth';
+import { checkIsAdmin } from '@/middleware/adminAuth';
 
 export const dynamic = 'force-dynamic';
 

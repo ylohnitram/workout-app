@@ -124,16 +124,29 @@ export default function WorkoutEditor() {
       
       try {
         const token = await user.getIdToken();
-        const response = await fetch('/api/admin/exercises', {
+        
+        // Načítání systémových cviků
+        const systemResponse = await fetch('/api/admin/exercises', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
         
-        if (response.ok) {
-          const result = await response.json();
-          const { data } = result;
-          setSystemExercises(data || []);
+        if (systemResponse.ok) {
+          const result = await systemResponse.json();
+          setSystemExercises(result.data || []);
+        }
+
+        // Načítání uživatelských cviků
+        const userResponse = await fetch('/api/exercises', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (userResponse.ok) {
+          const result = await userResponse.json();
+          setUserExercises(result.data || []);
         }
       } catch (error) {
         console.error('Failed to fetch exercises:', error);
