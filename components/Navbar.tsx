@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/contexts/AuthContext"
 import { useWorkout } from "@/contexts/WorkoutContext"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 
 const ADMIN_EMAILS = ['mholy1983@gmail.com']
@@ -11,6 +11,7 @@ export function Navbar() {
   const { user, signOut } = useAuth()
   const { activeWorkout } = useWorkout()
   const router = useRouter()
+  const pathname = usePathname()
 
   const isAdmin = user && ADMIN_EMAILS.includes(user.email);
 
@@ -22,28 +23,28 @@ export function Navbar() {
             <h1 className="text-xl font-bold">Workout Tracker</h1>
             <button 
               onClick={() => router.push('/')}
-              className="hover:text-gray-600"
+              className={pathname === '/' ? 'text-primary font-semibold' : 'hover:text-gray-600'}
             >
               Dashboard
             </button>
             {activeWorkout && (
               <button 
                 onClick={() => router.push('/progress')}
-                className="hover:text-gray-600 text-green-600 font-semibold"
+                className={pathname === '/progress' ? 'text-primary font-semibold' : 'text-green-600 hover:text-green-700'}
               >
                 Aktivní trénink
               </button>
             )}
             <button 
               onClick={() => router.push('/exercises')}
-              className="hover:text-gray-600"
+              className={pathname === '/exercises' ? 'text-primary font-semibold' : 'hover:text-gray-600'}
             >
               Moje cviky
             </button>
             {isAdmin && (
               <button 
                 onClick={() => router.push('/admin/exercises')}
-                className="hover:text-gray-600"
+                className={pathname === '/admin/exercises' ? 'text-primary font-semibold' : 'hover:text-gray-600'}
               >
                 Správa systémových cviků
               </button>
