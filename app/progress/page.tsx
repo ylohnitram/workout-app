@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
 import { useWorkout } from "@/contexts/WorkoutContext"
-import WorkoutProgress from "@/components/WorkoutProgress"
+import WorkoutProgress from "@/app/components/WorkoutProgress"
 
 export default function ProgressPage() {
   const { user } = useAuth()
