@@ -11,15 +11,20 @@ export default function WorkoutExecution() {
   const { workouts, startWorkout, activeWorkout } = useWorkout()
   const today = new Date().toLocaleDateString("cs-CZ", { weekday: "long" })
 
-  const handleStartWorkout = (workoutId: string) => {
-    startWorkout(workoutId)
-    router.push("/progress")  // Okamžité přesměrování
-  }
-
-  // Pokud je aktivní trénink, přímo přesměrujeme na stránku s progresem
   if (activeWorkout) {
-    router.push("/progress")
-    return null  // Vrátíme null, protože stejně budeme přesměrováni
+    return (
+      <Card>
+        <CardContent className="py-6">
+          <div className="text-center">
+            <p className="text-gray-500 mb-4">Máte aktivní trénink</p>
+            <Button onClick={() => router.push("/progress")}>
+              <Dumbbell className="w-4 h-4 mr-2" />
+              Pokračovat v tréninku
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
@@ -33,7 +38,10 @@ export default function WorkoutExecution() {
           {workouts.map((workout) => (
             <Button
               key={workout._id}
-              onClick={() => handleStartWorkout(workout._id!)}
+              onClick={() => {
+                startWorkout(workout._id!)
+                router.push("/progress")
+              }}
               className="flex items-center"
             >
               <Dumbbell className="w-4 h-4 mr-2" />
