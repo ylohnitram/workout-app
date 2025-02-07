@@ -6,7 +6,7 @@ import { useWorkout } from "@/contexts/WorkoutContext"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
-import { Timer, CheckSquare, Square, AlertTriangle, ArrowDown, Info } from "lucide-react"
+import { Timer } from "lucide-react"
 import { 
   Dialog,
   DialogContent,
@@ -15,13 +15,7 @@ import {
   DialogFooter,
   DialogDescription
 } from "@/components/ui/dialog"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import { SetType } from '@/types/exercise'
+import { SetDetail } from './SetDetail'
 import { useState } from "react"
 
 function formatTime(seconds: number): string {
@@ -37,7 +31,6 @@ export default function WorkoutProgress() {
   const [showEndDialog, setShowEndDialog] = useState(false)
   const [timer, setTimer] = useState<number>(0)
 
-  // Místo přesměrování na dashboard při chybějícím tréninku pouze zobrazíme informační komponentu
   if (!activeWorkout) {
     return (
       <Card>
@@ -100,7 +93,7 @@ export default function WorkoutProgress() {
   };
 
   return (
-    <TooltipProvider>
+    <>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Probíhající trénink</CardTitle>
@@ -134,66 +127,12 @@ export default function WorkoutProgress() {
                 
                 <div className="flex flex-wrap gap-2">
                   {exercise.sets.map((set, setIndex) => (
-                    <div key={setIndex} className="flex items-center">
-                      <Button
-                        variant={set.isCompleted ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => handleSetToggle(exerciseIndex, setIndex)}
-                        className="relative flex items-center gap-1"
-                      >
-                        {set.isCompleted ? (
-                          <CheckSquare className="w-4 h-4" />
-                        ) : (
-                          <Square className="w-4 h-4" />
-                        )}
-                        <span>Série {setIndex + 1}</span>
-                        
-                        {/* Ikony pro speciální typy sérií */}
-                        {set.type === SetType.REST_PAUSE && (
-                          <Tooltip delayDuration={0}>
-                            <TooltipTrigger asChild>
-                              <div>
-                                <AlertTriangle className="w-4 h-4 text-yellow-500 ml-1" />
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Rest-pause série</p>
-                              {set.restPauseSeconds && (
-                                <p>Pauza: {set.restPauseSeconds}s</p>
-                              )}
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                        
-                        {set.type === SetType.DROP && (
-                          <Tooltip delayDuration={0}>
-                            <TooltipTrigger asChild>
-                              <div>
-                                <ArrowDown className="w-4 h-4 text-red-500 ml-1" />
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Drop série</p>
-                              {set.dropSets && set.dropSets.map((drop, i) => (
-                                <p key={i}>Drop {i + 1}: {drop.weight}kg × {drop.reps}</p>
-                              ))}
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                        
-                        {/* Info o sérii */}
-                        <Tooltip delayDuration={0}>
-                          <TooltipTrigger asChild>
-                            <div>
-                              <Info className="w-4 h-4 ml-1" />
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{set.weight}kg × {set.reps === 'failure' ? 'do selhání' : set.reps}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </Button>
-                    </div>
+                    <SetDetail
+                      key={setIndex}
+                      set={set}
+                      setIndex={setIndex}
+                      onClick={() => handleSetToggle(exerciseIndex, setIndex)}
+                    />
                   ))}
                 </div>
               </div>
@@ -233,6 +172,6 @@ export default function WorkoutProgress() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </TooltipProvider>
+    </>
   );
 }
