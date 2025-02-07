@@ -492,7 +492,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const token = await user.getIdToken();
-    
+      
       // Nejdřív označíme workout jako neaktivní v workout-progress
       const progressResponse = await fetch('/api/workout-progress', {
         method: 'PUT',
@@ -512,6 +512,28 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Nepodařilo se uložit průběh tréninku');
       }
 
+      // Formátování dat pro workout log
+      const formattedExercises = activeWorkout.exercises.map(exercise => ({
+        exerciseId: exercise.exerciseId,
+        isSystem: exercise.isSystem,
+        name: exercise.name,
+        sets: exercise.sets.map(set => ({
+          type: set.type || 'NORMAL',
+          weight: set.weight,
+          reps: set.reps,
+          restPauseSeconds: set.restPauseSeconds,
+          dropSets: set.dropSets ? set.dropSets.map(drop => ({
+            weight: drop.weight,
+            reps: drop.reps
+          })) : undefined,
+          isCompleted: set.isCompleted,
+          actualWeight: set.actualWeight || set.weight,
+          actualReps: set.actualReps || (typeof set.reps === 'number' ? set.reps : null),
+          completedAt: set.isCompleted ? (set.completedAt || new Date()) : undefined
+        })),
+        progress: exercise.progress
+      }));
+
       // Vytvoříme log dokončeného tréninku
       const logResponse = await fetch('/api/workout-logs', {
         method: 'POST',
@@ -524,16 +546,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
           startTime: activeWorkout.startTime,
           endTime: new Date(),
           duration: workoutTimer,
-          exercises: activeWorkout.exercises.map(exercise => ({
-            exerciseId: exercise.exerciseId,
-            isSystem: exercise.isSystem,
-            name: exercise.name,
-            sets: exercise.sets.map(set => ({
-              ...set,
-              completedAt: set.completedAt || new Date()
-            })),
-            progress: exercise.progress
-          }))
+          exercises: formattedExercises
         })
       });
 
@@ -550,7 +563,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
 
       toast.success('Trénink byl úspěšně uložen', {
         id: endToast,
-        description: `Dokončeno ${activeWorkout.exercises.reduce(
+        description: `Dokončeno ${formattedExercises.reduce(
           (total, ex) => total + ex.sets.filter(s => s.isCompleted).length, 0
         )} sérií | ${Math.round(activeWorkout.progress)}% tréninku`
       });
@@ -560,6 +573,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         id: endToast,
         description: error instanceof Error ? error.message : 'Neznámá chyba'
       });
+      throw error; // Přeposíláme chybu pro případné další zpracování
     }
   };
 

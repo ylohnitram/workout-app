@@ -17,32 +17,17 @@ export async function GET(req: Request) {
     const decodedToken = await auth.verifyIdToken(token);
     const userId = decodedToken.uid;
 
-    // Parametry pro filtrování
     const url = new URL(req.url);
     const limit = parseInt(url.searchParams.get('limit') || '10');
-    const workoutId = url.searchParams.get('workoutId');
-    const startDate = url.searchParams.get('startDate');
-    const endDate = url.searchParams.get('endDate');
 
     await connectDB();
 
-    let query;
-    if (workoutId) {
-      // Historie konkrétního workoutu
-      query = await WorkoutLog.findWorkoutLogs(workoutId, limit);
-    } else if (startDate && endDate) {
-      // Historie v časovém rozmezí
-      query = await WorkoutLog.findDateRangeLogs(
-        userId,
-        new Date(startDate),
-        new Date(endDate)
-      );
-    } else {
-      // Poslední tréninky
-      query = await WorkoutLog.findUserLogs(userId, limit);
-    }
+    // Najdeme logy podle userId a seřadíme od nejnovějších
+    const logs = await WorkoutLog.find({ userId })
+      .sort({ startTime: -1 })
+      .limit(limit)
+      .lean();
 
-    const logs = await query.exec();
     return NextResponse.json({ data: logs });
   } catch (error) {
     console.error('Error fetching workout logs:', error);
@@ -84,7 +69,18 @@ export async function POST(req: Request) {
       );
     }
 
-    // Vytvoříme log tréninku
+    // Spočítáme statistiky
+    let totalSets = 0;
+    let completedSets = 0;
+
+    exercises.forEach(exercise => {
+      if (Array.isArray(exercise.sets)) {
+        totalSets += exercise.sets.length;
+        completedSets += exercise.sets.filter(set => set.isCompleted).length;
+      }
+    });
+
+    // Vytvoříme log tréninku s vypočítanými statistikami
     const workoutLog = await WorkoutLog.create({
       userId,
       workoutId,
@@ -92,20 +88,34 @@ export async function POST(req: Request) {
       endTime: new Date(endTime),
       duration,
       exercises: exercises.map(exercise => ({
-        ...exercise,
+        exerciseId: exercise.exerciseId,
+        isSystem: exercise.isSystem,
+        name: exercise.name,
         sets: exercise.sets.map(set => ({
           ...set,
+          type: set.type || 'NORMAL',
           completedAt: set.completedAt ? new Date(set.completedAt) : undefined
-        }))
-      }))
+        })),
+        progress: exercise.progress
+      })),
+      totalProgress: totalSets > 0 ? (completedSets / totalSets) * 100 : 0,
+      totalSets,
+      completedSets
     });
 
-    // Okamžitě načteme vytvořený log pro získání vypočítaných polí
-    const savedLog = await WorkoutLog.findById(workoutLog._id);
-
-    return NextResponse.json({ data: savedLog });
+    return NextResponse.json({ data: workoutLog });
   } catch (error) {
     console.error('Error saving workout log:', error);
+    if (error instanceof Error) {
+      return NextResponse.json(
+        { 
+          error: 'Failed to save workout log',
+          message: error.message,
+          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        },
+        { status: 500 }
+      );
+    }
     return NextResponse.json(
       { error: 'Failed to save workout log' },
       { status: 500 }
@@ -113,7 +123,7 @@ export async function POST(req: Request) {
   }
 }
 
-// DELETE - Smazání logu tréninku (volitelné, může být potřeba pro opravu chyb)
+// DELETE - Smazání logu tréninku
 export async function DELETE(req: Request) {
   try {
     const authHeader = req.headers.get('Authorization');
@@ -137,7 +147,7 @@ export async function DELETE(req: Request) {
 
     await connectDB();
 
-    // Zajistíme, že uživatel může smazat pouze své vlastní logy
+    // Smažeme pouze log, který patří danému uživateli
     const log = await WorkoutLog.findOneAndDelete({
       _id: logId,
       userId

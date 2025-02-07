@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { useWorkout } from "@/contexts/WorkoutContext"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -11,7 +12,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter
+  DialogFooter,
+  DialogDescription
 } from "@/components/ui/dialog"
 import {
   Tooltip,
@@ -20,6 +22,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { SetType } from '@/types/exercise'
+import { useState } from "react"
 
 function formatTime(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -29,9 +32,17 @@ function formatTime(seconds: number): string {
 }
 
 export default function WorkoutProgress() {
+  const router = useRouter();
   const { activeWorkout, completeSet, endWorkout } = useWorkout()
   const [showEndDialog, setShowEndDialog] = useState(false)
   const [timer, setTimer] = useState<number>(0)
+
+  // Pokud není aktivní trénink, přesměrujeme na dashboard
+  useEffect(() => {
+    if (!activeWorkout) {
+      router.push('/')
+    }
+  }, [activeWorkout, router]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -50,6 +61,10 @@ export default function WorkoutProgress() {
     };
   }, [activeWorkout]);
 
+  if (!activeWorkout) {
+    return null;
+  }
+
   const handleSetToggle = (exerciseIndex: number, setIndex: number) => {
     const exercise = activeWorkout?.exercises[exerciseIndex];
     const set = exercise?.sets[setIndex];
@@ -67,17 +82,11 @@ export default function WorkoutProgress() {
     }
   };
 
-  if (!activeWorkout) {
-    return (
-      <Card>
-        <CardContent className="py-6">
-          <div className="text-center text-gray-500">
-            Žádný aktivní trénink
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const handleEndWorkout = async () => {
+    await endWorkout();
+    setShowEndDialog(false);
+    router.push('/'); // Po ukončení tréninku přesměrujeme na dashboard
+  };
 
   return (
     <TooltipProvider>
@@ -190,29 +199,23 @@ export default function WorkoutProgress() {
         </CardContent>
       </Card>
 
-      {/* Dialog pro ukončení tréninku */}
       <Dialog open={showEndDialog} onOpenChange={setShowEndDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Ukončit trénink?</DialogTitle>
+            <DialogDescription>
+              {activeWorkout.progress < 100 
+                ? "Trénink není dokončen. Opravdu jej chcete ukončit?"
+                : "Gratulujeme k dokončení tréninku!"}
+            </DialogDescription>
           </DialogHeader>
-
-          <div>
-            {activeWorkout.progress < 100 
-              ? "Trénink není dokončen. Opravdu jej chcete ukončit?"
-              : "Gratulujeme k dokončení tréninku!"}
-          </div>
-
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEndDialog(false)}>
               Zrušit
             </Button>
             <Button 
               variant={activeWorkout.progress === 100 ? "default" : "destructive"}
-              onClick={async () => {
-                await endWorkout();
-                setShowEndDialog(false);
-              }}
+              onClick={handleEndWorkout}
             >
               Ukončit trénink
             </Button>
