@@ -72,6 +72,24 @@ export default function WorkoutProgress() {
   }, [activeWorkout]);
 
   const handleSetToggle = (exerciseIndex: number, setIndex: number) => {
+      const exercise = activeWorkout?.exercises[exerciseIndex];
+      const set = exercise?.sets[setIndex];
+      
+      if (!set) return;
+
+      completeSet(exerciseIndex, setIndex, {
+        weight: set.weight,
+        reps: typeof set.reps === 'number' ? set.reps : undefined
+      });
+
+      // Dialog pro ukončení zobrazíme pouze pokud jsme sérii označili jako dokončenou
+      // a celkový progres je 100%
+      if (!set.isCompleted && activeWorkout?.progress === 100) {
+        setShowEndDialog(true);
+      }
+    };
+
+  const handleSetToggle = (exerciseIndex: number, setIndex: number) => {
     const exercise = activeWorkout?.exercises[exerciseIndex];
     const set = exercise?.sets[setIndex];
     
