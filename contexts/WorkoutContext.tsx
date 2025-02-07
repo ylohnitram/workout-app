@@ -350,12 +350,16 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       
       if (!exercise) return prev;
 
+      const currentSet = exercise.sets[setIndex];
+      const isCompleted = !currentSet.isCompleted; // Toggle stavu
+
       exercise.sets[setIndex] = {
-        ...exercise.sets[setIndex],
-        isCompleted: true,
-        actualWeight: performance?.weight,
-        actualReps: performance?.reps,
-        completedAt: new Date()
+        ...currentSet,
+        isCompleted,
+        // Resetujeme actual hodnoty pokud sérii odznačujeme
+        actualWeight: isCompleted ? (performance?.weight ?? currentSet.weight) : undefined,
+        actualReps: isCompleted ? (performance?.reps ?? (typeof currentSet.reps === 'number' ? currentSet.reps : undefined)) : undefined,
+        completedAt: isCompleted ? new Date() : undefined
       };
 
       const completedSets = exercise.sets.filter(s => s.isCompleted).length;
@@ -433,49 +437,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       });
     }
   };
-
-  const completeSet = (exerciseIndex: number, setIndex: number, performance?: {
-      weight?: number;
-      reps?: number;
-    }) => {
-      if (!activeWorkout) return;
-
-      setActiveWorkout(prev => {
-        if (!prev) return null;
-
-        const newExercises = [...prev.exercises];
-        const exercise = newExercises[exerciseIndex];
-        
-        if (!exercise) return prev;
-
-        const currentSet = exercise.sets[setIndex];
-        const isCompleted = !currentSet.isCompleted; // Toggle stavu
-
-        exercise.sets[setIndex] = {
-          ...currentSet,
-          isCompleted,
-          // Resetujeme actual hodnoty pokud sérii odznačujeme
-          actualWeight: isCompleted ? (performance?.weight ?? currentSet.weight) : undefined,
-          actualReps: isCompleted ? (performance?.reps ?? (typeof currentSet.reps === 'number' ? currentSet.reps : undefined)) : undefined,
-          completedAt: isCompleted ? new Date() : undefined
-        };
-
-        const completedSets = exercise.sets.filter(s => s.isCompleted).length;
-        exercise.progress = (completedSets / exercise.sets.length) * 100;
-
-        const totalSets = newExercises.reduce((total, ex) => total + ex.sets.length, 0);
-        const totalCompletedSets = newExercises.reduce((total, ex) => 
-          total + ex.sets.filter(s => s.isCompleted).length, 0);
-        
-        const newWorkout = {
-          ...prev,
-          exercises: newExercises,
-          progress: (totalCompletedSets / totalSets) * 100
-        };
-
-        return newWorkout;
-      });
-    };
 
   const value = {
     workouts,
