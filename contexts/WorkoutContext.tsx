@@ -252,7 +252,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       // Uložení do localStorage
       workoutStorage.save(workoutData);
 
-      // Uložení do databáze
+      // Uložení do databáze - použijeme relativní URL
       const response = await fetch('/api/workout-progress', {
         method: 'PUT',
         headers: {

@@ -8,6 +8,8 @@ import WorkoutEditor from "./components/WorkoutEditor"
 import WorkoutExecution from "./components/WorkoutExecution"
 import WorkoutHistory from "./components/WorkoutHistory"
 import { TodayProgress } from "./components/TodayProgress"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 
 export default function Home() {
   const { user } = useAuth()
