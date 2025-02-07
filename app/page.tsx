@@ -3,7 +3,6 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
-import { useWorkout } from "@/contexts/WorkoutContext"
 import WeekPlanner from "./components/WeekPlanner"
 import WorkoutEditor from "./components/WorkoutEditor"
 import WorkoutExecution from "./components/WorkoutExecution"
