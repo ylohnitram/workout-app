@@ -37,12 +37,22 @@ export default function WorkoutProgress() {
   const [showEndDialog, setShowEndDialog] = useState(false)
   const [timer, setTimer] = useState<number>(0)
 
-  // Pokud není aktivní trénink, přesměrujeme na dashboard
-  useEffect(() => {
-    if (!activeWorkout) {
-      router.push('/')
-    }
-  }, [activeWorkout, router]);
+  // Místo přesměrování na dashboard při chybějícím tréninku pouze zobrazíme informační komponentu
+  if (!activeWorkout) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-center">
+          <p className="text-muted-foreground">Žádný aktivní trénink</p>
+          <Button 
+            className="mt-4"
+            onClick={() => router.push('/')}
+          >
+            Zpět na dashboard
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -60,10 +70,6 @@ export default function WorkoutProgress() {
       }
     };
   }, [activeWorkout]);
-
-  if (!activeWorkout) {
-    return null;
-  }
 
   const handleSetToggle = (exerciseIndex: number, setIndex: number) => {
     const exercise = activeWorkout?.exercises[exerciseIndex];
@@ -85,7 +91,7 @@ export default function WorkoutProgress() {
   const handleEndWorkout = async () => {
     await endWorkout();
     setShowEndDialog(false);
-    router.push('/'); // Po ukončení tréninku přesměrujeme na dashboard
+    router.push('/');
   };
 
   return (
@@ -223,5 +229,5 @@ export default function WorkoutProgress() {
         </DialogContent>
       </Dialog>
     </TooltipProvider>
-  )
+  );
 }
