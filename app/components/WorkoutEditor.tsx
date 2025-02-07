@@ -125,8 +125,8 @@ export default function WorkoutEditor() {
       try {
         const token = await user.getIdToken();
         
-        // Načítání systémových cviků
-        const systemResponse = await fetch('/api/admin/exercises', {
+        // Načítání systémových cviků - nyní přes nový endpoint
+        const systemResponse = await fetch('/api/exercises/system', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -137,7 +137,7 @@ export default function WorkoutEditor() {
           setSystemExercises(result.data || []);
         }
 
-        // Načítání uživatelských cviků
+        // Načítání uživatelských cviků - zůstává stejné
         const userResponse = await fetch('/api/exercises', {
           headers: {
             'Authorization': `Bearer ${token}`
