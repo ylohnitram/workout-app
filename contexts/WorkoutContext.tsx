@@ -97,9 +97,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (!response.ok) {
-        console.error('Failed to fetch workouts:', response.status);
-        setWorkouts([]);
-        return;
+        throw new Error('Failed to fetch workouts');
       }
 
       const result = await response.json();
@@ -126,6 +124,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Error fetching workouts:', error);
       setWorkouts([]);
+      toast.error('Nepodařilo se načíst tréninky');
     }
   };
 
@@ -206,6 +205,107 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       isMounted = false;
     };
   }, [user]);
+
+  const addWorkout = async (workout: Workout) => {
+    if (!user) return;
+    
+    if (!workout.name || workout.name === WORKOUT_DEFAULTS.DEFAULT) {
+      console.error('Invalid workout name:', workout.name);
+      return;
+    }
+
+    try {
+      const token = await user.getIdToken();
+      const workoutData = {
+        name: workout.name.trim(),
+        exercises: workout.exercises || []
+      };
+      
+      const response = await fetch('/api/workouts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(workoutData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add workout');
+      }
+
+      const result = await response.json();
+      setWorkouts(prevWorkouts => [...prevWorkouts, result]);
+      toast.success('Trénink byl vytvořen');
+    } catch (error) {
+      console.error('Error adding workout:', error);
+      toast.error('Nepodařilo se vytvořit trénink');
+    }
+  };
+
+  const updateWorkout = async (id: string, workout: Workout) => {
+    if (!user) return;
+
+    try {
+      const token = await user.getIdToken();
+      const workoutData = {
+        ...workout,
+        name: workout.name.trim()
+      };
+      
+      const response = await fetch(`/api/workouts/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(workoutData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update workout');
+      }
+
+      await fetchWorkouts();
+      
+      if (selectedWorkout?._id === id) {
+        const updatedWorkout = await response.json();
+        setSelectedWorkout(updatedWorkout);
+      }
+      toast.success('Trénink byl aktualizován');
+    } catch (error) {
+      console.error('Error updating workout:', error);
+      toast.error('Nepodařilo se aktualizovat trénink');
+    }
+  };
+
+  const deleteWorkout = async (id: string) => {
+    if (!user) return;
+
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch(`/api/workouts/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete workout');
+      }
+
+      if (selectedWorkout?._id === id) {
+        setSelectedWorkout(null);
+      }
+
+      setWorkouts(prevWorkouts => prevWorkouts.filter(w => w._id !== id));
+      toast.success('Trénink byl smazán');
+    } catch (error) {
+      console.error('Error deleting workout:', error);
+      toast.error('Nepodařilo se smazat trénink');
+    }
+  };
 
   const startWorkout = async (workoutId: string) => {
     if (!user) return;
