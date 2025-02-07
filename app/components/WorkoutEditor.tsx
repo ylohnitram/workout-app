@@ -320,7 +320,7 @@ export default function WorkoutEditor() {
           </DndContext>
 
           <Dialog open={editingExerciseIndex !== null} onOpenChange={() => setEditingExerciseIndex(null)}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               {editingExerciseIndex !== null && selectedWorkout && (
                 <ExerciseSelector
                   systemExercises={systemExercises}
