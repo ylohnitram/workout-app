@@ -1,9 +1,9 @@
 "use client"
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { SetType } from '@/types/exercise';
-import { workoutStorage, formatWorkoutForStorage } from '@/lib/workoutStorage';
+import { workoutStorage } from '@/lib/workoutStorage';
 import { toast } from 'sonner';
 
 export const WORKOUT_DEFAULTS = {
@@ -11,8 +11,6 @@ export const WORKOUT_DEFAULTS = {
   DEFAULT: 'default',
   NO_WORKOUTS: 'no-workouts'
 } as const;
-
-const SAVE_INTERVAL = 2 * 60 * 1000; // 2 minuty
 
 // Základní typy pro cvičení
 interface DropSet {
@@ -85,7 +83,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
   const [activeWorkout, setActiveWorkout] = useState<ActiveWorkout | null>(null);
   const [workoutTimer, setWorkoutTimer] = useState<number>(0);
-  const [lastSaveTime, setLastSaveTime] = useState<number>(Date.now());
   const { user } = useAuth();
 
   const fetchWorkouts = async () => {
@@ -132,6 +129,39 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Načtení uloženého průběhu při startu - NIKDY automaticky nespouštět
+  useEffect(() => {
+    const loadSavedProgress = async () => {
+      if (!user) {
+        setActiveWorkout(null);
+        workoutStorage.clear();
+        return;
+      }
+
+      try {
+        // Pouze kontrolujeme, zda existuje uložený průběh, ale NENASTAVUJEME ho automaticky
+        const localWorkout = workoutStorage.load();
+        if (localWorkout) {
+          console.log('Found saved workout, but not auto-starting it');
+          workoutStorage.clear(); // Vyčistíme localStorage
+        }
+
+        // Vyčistíme případný aktivní trénink v MongoDB
+        const token = await user.getIdToken();
+        await fetch('/api/workout-progress', {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      } catch (error) {
+        console.error('Error checking saved workout progress:', error);
+      }
+    };
+
+    loadSavedProgress();
+  }, [user]);
+
   // Timer effect pro aktivní workout
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -150,19 +180,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     };
   }, [activeWorkout]);
 
-  // Automatické ukládání průběhu
-  useEffect(() => {
-    if (!activeWorkout) return;
-
-    const saveInterval = setInterval(() => {
-      if (activeWorkout && Date.now() - lastSaveTime >= SAVE_INTERVAL) {
-        saveWorkoutProgress(activeWorkout);
-      }
-    }, SAVE_INTERVAL);
-
-    return () => clearInterval(saveInterval);
-  }, [activeWorkout, lastSaveTime]);
-
   // Načtení workoutů při přihlášení
   useEffect(() => {
     let isMounted = true;
@@ -172,6 +189,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         if (isMounted) {
           setWorkouts([]);
           setSelectedWorkout(null);
+          setActiveWorkout(null);  // Reset aktivního workoutu při odhlášení
+          workoutStorage.clear();   // Vyčištění localStorage při odhlášení
         }
         return;
       }
@@ -187,203 +206,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       isMounted = false;
     };
   }, [user]);
-
-  // Načtení uloženého průběhu při startu
-  useEffect(() => {
-    const loadSavedProgress = async () => {
-      if (!user) return;
-
-      try {
-        // Nejprve zkusíme načíst z localStorage
-        const localWorkout = workoutStorage.load();
-        
-        if (localWorkout) {
-          setActiveWorkout({
-            workoutId: localWorkout.workoutId,
-            startTime: new Date(localWorkout.startTime),
-            exercises: localWorkout.exercises,
-            progress: localWorkout.progress
-          });
-          return;
-        }
-
-        // Pokud není v localStorage, zkusíme z databáze
-        const token = await user.getIdToken();
-        const response = await fetch('/api/workout-progress', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const { data } = await response.json();
-          if (data) {
-            setActiveWorkout({
-              workoutId: data.workoutId,
-              startTime: new Date(data.startTime),
-              exercises: data.exercises,
-              progress: data.progress
-            });
-            // Uložíme i do localStorage
-            workoutStorage.save(data);
-          }
-        }
-      } catch (error) {
-        console.error('Error loading saved workout progress:', error);
-      }
-    };
-
-    loadSavedProgress();
-  }, [user]);
-
-  const saveWorkoutProgress = async (workout: ActiveWorkout) => {
-    if (!user || !workout) return;
-
-    try {
-      const token = await user.getIdToken();
-      const workoutData = formatWorkoutForStorage(
-        user.uid,
-        workout.workoutId,
-        workout.startTime,
-        workout.exercises,
-        workout.progress
-      );
-
-      // Uložení do localStorage
-      workoutStorage.save(workoutData);
-
-      // Uložení do databáze - použijeme relativní URL
-      const response = await fetch('/api/workout-progress', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(workoutData)
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save workout progress');
-      }
-
-      setLastSaveTime(Date.now());
-      console.log('Workout progress saved successfully');
-    } catch (error) {
-      console.error('Error saving workout progress:', error);
-    }
-  };
-
-  const addWorkout = async (workout: Workout) => {
-    if (!user) return;
-    
-    if (!workout.name || workout.name === WORKOUT_DEFAULTS.DEFAULT) {
-      console.error('Invalid workout name:', workout.name);
-      return;
-    }
-
-    try {
-      const token = await user.getIdToken();
-      const workoutData = {
-        name: workout.name.trim(),
-        exercises: workout.exercises || []
-      };
-      
-      const response = await fetch('/api/workouts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(workoutData),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Server error:', response.status, errorText);
-        return;
-      }
-
-      const result = await response.json();
-
-      if (!result._id) {
-        console.error('Invalid server response - missing required fields:', result);
-        return;
-      }
-
-      const newWorkout = {
-        ...result,
-        name: result.name || workoutData.name
-      };
-
-      setWorkouts(prevWorkouts => [...prevWorkouts, newWorkout]);
-    } catch (error) {
-      console.error('Error adding workout:', error);
-    }
-  };
-
-  const updateWorkout = async (id: string, workout: Workout) => {
-    if (!user) return;
-
-    try {
-      const token = await user.getIdToken();
-      const workoutData = {
-        ...workout,
-        name: workout.name.trim()
-      };
-      
-      const response = await fetch(`/api/workouts/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(workoutData),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Server error:', response.status, errorText);
-        return;
-      }
-
-      await fetchWorkouts();
-      
-      if (selectedWorkout?._id === id) {
-        const updatedWorkout = await response.json();
-        setSelectedWorkout(updatedWorkout);
-      }
-    } catch (error) {
-      console.error('Error updating workout:', error);
-    }
-  };
-
-  const deleteWorkout = async (id: string) => {
-    if (!user) return;
-
-    try {
-      const token = await user.getIdToken();
-      const response = await fetch(`/api/workouts/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Server error:', response.status, errorText);
-        return;
-      }
-
-      if (selectedWorkout?._id === id) {
-        setSelectedWorkout(null);
-      }
-
-      await fetchWorkouts();
-    } catch (error) {
-      console.error('Error deleting workout:', error);
-    }
-  };
 
   const startWorkout = async (workoutId: string) => {
     if (!user) return;
@@ -406,40 +228,11 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     };
 
     try {
-      const token = await user.getIdToken();
-      // Uložíme do databáze
-      const response = await fetch('/api/workout-progress', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formatWorkoutForStorage(
-          user.uid,
-          workoutId,
-          newActiveWorkout.startTime,
-          newActiveWorkout.exercises,
-          newActiveWorkout.progress
-        ))
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save initial workout progress');
-      }
-
-      // Uložíme do localStorage
-      workoutStorage.save(formatWorkoutForStorage(
-        user.uid,
-        workoutId,
-        newActiveWorkout.startTime,
-        newActiveWorkout.exercises,
-        newActiveWorkout.progress
-      ));
-
       setActiveWorkout(newActiveWorkout);
-      setLastSaveTime(Date.now());
+      toast.success('Trénink byl zahájen');
     } catch (error) {
       console.error('Error starting workout:', error);
+      toast.error('Nepodařilo se zahájit trénink');
     }
   };
 
@@ -478,9 +271,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         progress: (totalCompletedSets / totalSets) * 100
       };
 
-      // Okamžitě uložíme změnu
-      saveWorkoutProgress(newWorkout);
-
       return newWorkout;
     });
   };
@@ -488,52 +278,11 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const endWorkout = async () => {
     if (!activeWorkout || !user) return;
 
-    const endToast = toast.loading('Ukládám trénink...');
+    const endToast = toast.loading('Ukončuji trénink...');
 
     try {
       const token = await user.getIdToken();
       
-      // Nejdřív označíme workout jako neaktivní v workout-progress
-      const progressResponse = await fetch('/api/workout-progress', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          workoutId: activeWorkout.workoutId,
-          exercises: activeWorkout.exercises,
-          progress: activeWorkout.progress,
-          isActive: false
-        })
-      });
-
-      if (!progressResponse.ok) {
-        throw new Error('Nepodařilo se uložit průběh tréninku');
-      }
-
-      // Formátování dat pro workout log
-      const formattedExercises = activeWorkout.exercises.map(exercise => ({
-        exerciseId: exercise.exerciseId,
-        isSystem: exercise.isSystem,
-        name: exercise.name,
-        sets: exercise.sets.map(set => ({
-          type: set.type || 'NORMAL',
-          weight: set.weight,
-          reps: set.reps,
-          restPauseSeconds: set.restPauseSeconds,
-          dropSets: set.dropSets ? set.dropSets.map(drop => ({
-            weight: drop.weight,
-            reps: drop.reps
-          })) : undefined,
-          isCompleted: set.isCompleted,
-          actualWeight: set.actualWeight || set.weight,
-          actualReps: set.actualReps || (typeof set.reps === 'number' ? set.reps : null),
-          completedAt: set.isCompleted ? (set.completedAt || new Date()) : undefined
-        })),
-        progress: exercise.progress
-      }));
-
       // Vytvoříme log dokončeného tréninku
       const logResponse = await fetch('/api/workout-logs', {
         method: 'POST',
@@ -546,7 +295,16 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
           startTime: activeWorkout.startTime,
           endTime: new Date(),
           duration: workoutTimer,
-          exercises: formattedExercises
+          exercises: activeWorkout.exercises.map(exercise => ({
+            exerciseId: exercise.exerciseId,
+            isSystem: exercise.isSystem,
+            name: exercise.name,
+            sets: exercise.sets.map(set => ({
+              ...set,
+              completedAt: set.completedAt || new Date()
+            })),
+            progress: exercise.progress
+          }))
         })
       });
 
@@ -561,19 +319,18 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       setActiveWorkout(null);
       setWorkoutTimer(0);
 
-      toast.success('Trénink byl úspěšně uložen', {
+      toast.success('Trénink byl úspěšně ukončen', {
         id: endToast,
-        description: `Dokončeno ${formattedExercises.reduce(
+        description: `Dokončeno ${activeWorkout.exercises.reduce(
           (total, ex) => total + ex.sets.filter(s => s.isCompleted).length, 0
         )} sérií | ${Math.round(activeWorkout.progress)}% tréninku`
       });
     } catch (error) {
       console.error('Failed to end workout:', error);
-      toast.error('Chyba při ukládání tréninku', {
+      toast.error('Chyba při ukončování tréninku', {
         id: endToast,
         description: error instanceof Error ? error.message : 'Neznámá chyba'
       });
-      throw error; // Přeposíláme chybu pro případné další zpracování
     }
   };
 

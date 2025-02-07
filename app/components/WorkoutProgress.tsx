@@ -89,9 +89,13 @@ export default function WorkoutProgress() {
   };
 
   const handleEndWorkout = async () => {
-    await endWorkout();
-    setShowEndDialog(false);
-    router.push('/');
+    try {
+      await endWorkout();
+      setShowEndDialog(false);
+      router.push('/');
+    } catch (error) {
+      console.error('Failed to end workout:', error);
+    }
   };
 
   return (
@@ -206,10 +210,10 @@ export default function WorkoutProgress() {
       </Card>
 
       <Dialog open={showEndDialog} onOpenChange={setShowEndDialog}>
-        <DialogContent>
+        <DialogContent aria-describedby="workout-end-description">
           <DialogHeader>
             <DialogTitle>Ukončit trénink?</DialogTitle>
-            <DialogDescription>
+            <DialogDescription id="workout-end-description">
               {activeWorkout.progress < 100 
                 ? "Trénink není dokončen. Opravdu jej chcete ukončit?"
                 : "Gratulujeme k dokončení tréninku!"}

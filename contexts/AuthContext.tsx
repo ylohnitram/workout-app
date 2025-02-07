@@ -50,6 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
+      localStorage.clear();  // Vyčistíme localStorage před odhlášením
       await firebaseSignOut(auth)
       console.log("Sign out successful")
     } catch (error) {
@@ -68,4 +69,3 @@ export const useAuth = () => {
   }
   return context
 }
-
