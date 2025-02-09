@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { CheckSquare, AlertTriangle, ArrowDown, ChevronRight, XIcon } from "lucide-react"
+import { CheckSquare, AlertTriangle, ArrowDown, XIcon } from "lucide-react"
 import {
   Tooltip,
   TooltipContent,
@@ -28,38 +28,47 @@ interface SetDetailProps {
 export function SetDetail({ set, setIndex, onClick }: SetDetailProps) {
   const [isMobileView, setIsMobileView] = useState(false);
   const [swipeX, setSwipeX] = useState(0);
-  const startXRef = useRef(0);
-  const elementRef = useRef<HTMLDivElement>(null);
+  const [startX, setStartX] = useState(0);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const SWIPE_THRESHOLD = 100;
 
   useEffect(() => {
-    const checkIfMobile = () => {
-      setIsMobileView(window.innerWidth < 640);
-    };
-
+    const checkIfMobile = () => setIsMobileView(window.innerWidth < 640);
     checkIfMobile();
     window.addEventListener('resize', checkIfMobile);
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    startXRef.current = e.touches[0].clientX;
+    setStartX(e.touches[0].clientX);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+    if (!cardRef.current) return;
     const currentX = e.touches[0].clientX;
-    const diff = currentX - startXRef.current;
-    // Omezíme swipe pouze doprava a maximálně do 100px
-    const newX = Math.max(0, Math.min(diff, 100));
-    setSwipeX(newX);
+    const diff = currentX - startX;
+    setSwipeX(diff);
   };
 
   const handleTouchEnd = () => {
-    // Pokud byl swipe dostatečně dlouhý, provedeme akci
-    if (swipeX > 50) {
+    if (Math.abs(swipeX) > SWIPE_THRESHOLD) {
+      // Pokud je swipe dostatečně dlouhý, provedeme akci
       onClick();
     }
-    // Vždy vrátíme do původní pozice
+    // Vždy vrátíme kartu na původní pozici
     setSwipeX(0);
+  };
+
+  const getSwipeStyles = () => {
+    if (!swipeX) return {};
+    
+    const rotate = swipeX * 0.1; // Rotace karty během swipe
+    const opacity = Math.min(Math.abs(swipeX) / SWIPE_THRESHOLD, 1);
+    
+    return {
+      transform: `translateX(${swipeX}px) rotate(${rotate}deg)`,
+      transition: swipeX === 0 ? 'transform 0.3s ease-out' : undefined,
+    };
   };
 
   const MobileSetContent = () => (
@@ -90,32 +99,32 @@ export function SetDetail({ set, setIndex, onClick }: SetDetailProps) {
   );
 
   if (isMobileView) {
+    const swipeDirection = swipeX > 0 ? 'right' : swipeX < 0 ? 'left' : null;
+    const swipeOpacity = Math.min(Math.abs(swipeX) / SWIPE_THRESHOLD, 1);
+
     return (
-      <div className="relative mb-8">
-        {/* Indikátory pod kartou */}
-        <div className="absolute -bottom-8 left-0 right-0 flex justify-between px-6 text-sm">
-          <div className="flex items-center text-red-500">
-            <XIcon className="w-5 h-5 mr-1" />
-            <span>Nehotovo</span>
-          </div>
-          <div className="flex items-center text-green-500">
-            <span>Hotovo</span>
-            <CheckSquare className="w-5 h-5 ml-1" />
-          </div>
+      <div className="relative mb-4 touch-none">
+        {/* Pozadí pro vizuální feedback */}
+        <div 
+          className={`absolute inset-0 rounded-lg flex items-center justify-center
+            ${swipeDirection === 'right' ? 'bg-green-100' : 'bg-red-100'}`}
+          style={{ opacity: swipeOpacity }}
+        >
+          {swipeDirection === 'right' ? (
+            <CheckSquare className="w-8 h-8 text-green-600" style={{ opacity: swipeOpacity }} />
+          ) : (
+            <XIcon className="w-8 h-8 text-red-600" style={{ opacity: swipeOpacity }} />
+          )}
         </div>
-        
+
         {/* Hlavní karta */}
         <div
-          ref={elementRef}
+          ref={cardRef}
           className={`
-            p-3 rounded-lg border relative bg-background
+            p-4 rounded-lg border bg-background relative
             ${set.isCompleted ? 'border-primary' : 'border-border'}
-            touch-pan-x
           `}
-          style={{
-            transform: `translateX(${swipeX}px)`,
-            transition: swipeX === 0 ? 'transform 0.2s ease-out' : undefined
-          }}
+          style={getSwipeStyles()}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
