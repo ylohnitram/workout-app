@@ -8,7 +8,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { SetType } from '@/types/exercise'
-import { useDraggable } from '@dnd-kit/core';
+import { useDraggable } from '@dnd-kit/core'
+import { CSS } from '@dnd-kit/utilities'
 
 interface SetDetailProps {
   set: {
@@ -35,6 +36,7 @@ export function SetDetail({ set, setIndex, onClick }: SetDetailProps) {
     listeners,
     setNodeRef,
     transform,
+    isDragging,
   } = useDraggable({
     id: dragId,
   });
@@ -49,9 +51,10 @@ export function SetDetail({ set, setIndex, onClick }: SetDetailProps) {
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
 
-  const style = transform ? {
-    transform: `translateX(${transform.x}px)`,
-  } : undefined;
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition: !isDragging ? 'transform 250ms ease' : undefined,
+  };
 
   const MobileSetContent = () => (
     <div className="flex items-center">
@@ -98,14 +101,22 @@ export function SetDetail({ set, setIndex, onClick }: SetDetailProps) {
         {...attributes}
         {...listeners}
         className={`
-          p-3 rounded-lg border mb-2
+          p-3 rounded-lg border mb-2 
           ${set.isCompleted ? 'bg-primary/5 border-primary' : 'bg-card border-border'}
-          ${transform?.x ? 'cursor-grabbing' : 'cursor-grab'}
+          relative
           touch-pan-x
         `}
-        onClick={onClick}
       >
         <MobileSetContent />
+        {/* Swipe indikátor na pozadí */}
+        <div 
+          className="absolute inset-0 bg-green-100 rounded-lg -z-10 flex items-center justify-end pr-4"
+          style={{
+            opacity: transform?.x ? Math.min(transform.x / 200, 1) : 0
+          }}
+        >
+          <CheckSquare className="w-6 h-6 text-green-600" />
+        </div>
       </div>
     );
   }

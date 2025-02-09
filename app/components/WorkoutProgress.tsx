@@ -34,7 +34,9 @@ export default function WorkoutProgress() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 10, // Minimální vzdálenost pro aktivaci swipe
+        distance: 8, // Minimální vzdálenost pro aktivaci swipe
+        tolerance: 5, // Tolerance pro šikmý pohyb
+        delay: 0, // Žádné zpoždění pro aktivaci
       },
     })
   );
@@ -58,13 +60,19 @@ export default function WorkoutProgress() {
     if (!active || !active.id || typeof active.id !== 'string') return;
 
     // Pokud byl swipe dostatečně dlouhý, označíme sérii jako dokončenou
-    if (delta.x > SWIPE_THRESHOLD) {
-      const [, setIndexStr] = active.id.split('-');
-      const exerciseIndex = 0; // TODO: Získat správný index cvičení
-      const setIndex = parseInt(setIndexStr, 10);
-      
-      if (!isNaN(setIndex)) {
-        completeSet(exerciseIndex, setIndex);
+    if (Math.abs(delta.x) > SWIPE_THRESHOLD) {
+      const setId = active.id as string;
+      // Předpokládáme formát ID: "exercise-{exerciseIndex}-set-{setIndex}"
+      const match = setId.match(/^set-(\d+)$/);
+      if (match) {
+        const setIndex = parseInt(match[1], 10);
+        const exerciseIndex = activeWorkout.exercises.findIndex(exercise => 
+          exercise.sets.some((_, idx) => idx === setIndex)
+        );
+        
+        if (exerciseIndex !== -1) {
+          completeSet(exerciseIndex, setIndex);
+        }
       }
     }
   };
