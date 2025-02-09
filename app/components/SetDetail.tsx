@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { CheckSquare, AlertTriangle, ArrowDown, XIcon } from "lucide-react"
+import { CheckSquare, AlertTriangle, ArrowDown } from "lucide-react"
 import {
   Tooltip,
   TooltipContent,
@@ -27,10 +27,7 @@ interface SetDetailProps {
 
 export function SetDetail({ set, setIndex, onClick }: SetDetailProps) {
   const [isMobileView, setIsMobileView] = useState(false);
-  const [swipeX, setSwipeX] = useState(0);
-  const startXRef = useRef(0);
-  const cardRef = useRef<HTMLDivElement>(null);
-  
+
   useEffect(() => {
     const checkIfMobile = () => setIsMobileView(window.innerWidth < 640);
     checkIfMobile();
@@ -38,85 +35,44 @@ export function SetDetail({ set, setIndex, onClick }: SetDetailProps) {
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    startXRef.current = e.touches[0].clientX;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    const currentX = e.touches[0].clientX;
-    const diff = currentX - startXRef.current;
-    const bounded = Math.max(Math.min(diff, 150), -150);
-    setSwipeX(bounded);
-  };
-
-  const handleTouchEnd = () => {
-    if (Math.abs(swipeX) > 100) {
-      onClick();
-    }
-    setSwipeX(0);
-  };
-
-  const MobileSetContent = () => (
-    <>
-      <div className="flex items-center gap-2 mb-1">
-        <span className="font-medium">Série {setIndex + 1}</span>
-        {set.type === SetType.REST_PAUSE && (
-          <AlertTriangle className="w-4 h-4 text-yellow-500" />
-        )}
-        {set.type === SetType.DROP && (
-          <ArrowDown className="w-4 h-4 text-red-500" />
-        )}
-      </div>
-      <div className="text-sm text-muted-foreground">
-        {set.weight}kg × {set.reps === 'failure' ? 'do selhání' : set.reps}
-        {set.type === SetType.REST_PAUSE && set.restPauseSeconds && (
-          <span className="ml-2">(pauza {set.restPauseSeconds}s)</span>
-        )}
-        {set.type === SetType.DROP && set.dropSets && (
-          <span className="ml-2">
-            → {set.dropSets.map(drop => `${drop.weight}kg`).join(' → ')}
-          </span>
-        )}
-      </div>
-    </>
-  );
-
   if (isMobileView) {
     return (
-      <div className="relative mb-4 min-h-[80px]">
-        {/* Pozadí pro feedback */}
-        <div 
-          className={`
-            absolute inset-0 rounded-lg flex items-center justify-center
-            ${swipeX > 0 ? 'bg-green-100' : swipeX < 0 ? 'bg-red-100' : ''}
-          `}
-          style={{
-            opacity: Math.abs(swipeX) / 100
-          }}
-        >
-          {swipeX > 0 ? (
-            <CheckSquare className="w-8 h-8 text-green-600" />
-          ) : (
-            <XIcon className="w-8 h-8 text-red-600" />
-          )}
+      <div className="border rounded-lg p-4 mb-2 bg-background">
+        {/* Hlavička karty */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="font-medium">Série {setIndex + 1}</span>
+            {set.type === SetType.REST_PAUSE && (
+              <AlertTriangle className="w-4 h-4 text-yellow-500" />
+            )}
+            {set.type === SetType.DROP && (
+              <ArrowDown className="w-4 h-4 text-red-500" />
+            )}
+          </div>
+          <Button
+            variant={set.isCompleted ? "default" : "outline"}
+            size="sm"
+            onClick={onClick}
+          >
+            {set.isCompleted ? (
+              <CheckSquare className="w-4 h-4" />
+            ) : (
+              <span className="w-4 h-4 border rounded" />
+            )}
+          </Button>
         </div>
 
-        {/* Karta */}
-        <div
-          ref={cardRef}
-          className={`
-            absolute inset-0 p-4 rounded-lg border bg-background
-            ${set.isCompleted ? 'border-primary' : 'border-border'}
-          `}
-          style={{
-            transform: `translateX(${swipeX}px)`,
-            transition: swipeX === 0 ? 'transform 0.2s ease-out' : undefined
-          }}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-        >
-          <MobileSetContent />
+        {/* Detail série */}
+        <div className="text-sm text-muted-foreground">
+          {set.weight}kg × {set.reps === 'failure' ? 'do selhání' : set.reps}
+          {set.type === SetType.REST_PAUSE && set.restPauseSeconds && (
+            <span className="ml-2">(pauza {set.restPauseSeconds}s)</span>
+          )}
+          {set.type === SetType.DROP && set.dropSets && (
+            <span className="ml-2">
+              → {set.dropSets.map(drop => `${drop.weight}kg`).join(' → ')}
+            </span>
+          )}
         </div>
       </div>
     );
