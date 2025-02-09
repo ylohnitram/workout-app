@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { CheckSquare, Square, AlertTriangle, ArrowDown, ChevronRight } from "lucide-react"
+import { CheckSquare, AlertTriangle, ArrowDown } from "lucide-react"
 import {
   Tooltip,
   TooltipContent,
@@ -8,8 +8,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { SetType } from '@/types/exercise'
-import { useDraggable } from '@dnd-kit/core'
-import { CSS } from '@dnd-kit/utilities'
 
 interface SetDetailProps {
   set: {
@@ -29,17 +27,9 @@ interface SetDetailProps {
 
 export function SetDetail({ set, setIndex, onClick }: SetDetailProps) {
   const [isMobileView, setIsMobileView] = useState(false);
-  const dragId = `set-${setIndex}`;
-  
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    isDragging,
-  } = useDraggable({
-    id: dragId,
-  });
+  const [swipeX, setSwipeX] = useState(0);
+  const startXRef = useRef(0);
+  const elementRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const checkIfMobile = () => {
@@ -51,14 +41,30 @@ export function SetDetail({ set, setIndex, onClick }: SetDetailProps) {
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
 
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    transition: !isDragging ? 'transform 250ms ease' : undefined,
+  const handleTouchStart = (e: React.TouchEvent) => {
+    startXRef.current = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const currentX = e.touches[0].clientX;
+    const diff = currentX - startXRef.current;
+    // Omezíme swipe pouze doprava a maximálně do 100px
+    const newX = Math.max(0, Math.min(diff, 100));
+    setSwipeX(newX);
+  };
+
+  const handleTouchEnd = () => {
+    // Pokud byl swipe dostatečně dlouhý, provedeme akci
+    if (swipeX > 50) {
+      onClick();
+    }
+    // Vždy vrátíme do původní pozice
+    setSwipeX(0);
   };
 
   const MobileSetContent = () => (
-    <div className="flex items-center">
-      <div className="flex-1">
+    <div className="flex items-center justify-between w-full">
+      <div className="flex flex-col">
         <div className="flex items-center gap-2">
           <span className="font-medium">Série {setIndex + 1}</span>
           {set.type === SetType.REST_PAUSE && (
@@ -80,42 +86,42 @@ export function SetDetail({ set, setIndex, onClick }: SetDetailProps) {
           )}
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        {set.isCompleted ? (
-          <CheckSquare className="w-5 h-5 text-primary" />
-        ) : (
-          <div className="flex items-center text-muted-foreground">
-            <span className="text-sm mr-1">Swipe</span>
-            <ChevronRight className="w-4 h-4" />
-          </div>
-        )}
+      <div className="flex items-center">
+        {set.isCompleted && <CheckSquare className="w-5 h-5 text-primary" />}
       </div>
     </div>
   );
 
   if (isMobileView) {
     return (
-      <div
-        ref={setNodeRef}
-        style={style}
-        {...attributes}
-        {...listeners}
-        className={`
-          p-3 rounded-lg border mb-2 
-          ${set.isCompleted ? 'bg-primary/5 border-primary' : 'bg-card border-border'}
-          relative
-          touch-pan-x
-        `}
-      >
-        <MobileSetContent />
-        {/* Swipe indikátor na pozadí */}
+      <div className="relative mb-2 overflow-hidden">
+        {/* Zelené pozadí pro indikaci swipe */}
         <div 
-          className="absolute inset-0 bg-green-100 rounded-lg -z-10 flex items-center justify-end pr-4"
+          className="absolute inset-0 bg-green-100 flex items-center justify-end pr-4"
           style={{
-            opacity: transform?.x ? Math.min(transform.x / 200, 1) : 0
+            opacity: swipeX / 100,
           }}
         >
           <CheckSquare className="w-6 h-6 text-green-600" />
+        </div>
+        
+        {/* Hlavní obsah, který se posouvá */}
+        <div
+          ref={elementRef}
+          className={`
+            p-3 rounded-lg border relative bg-background
+            ${set.isCompleted ? 'border-primary' : 'border-border'}
+            touch-pan-x
+          `}
+          style={{
+            transform: `translateX(${swipeX}px)`,
+            transition: swipeX === 0 ? 'transform 0.2s ease-out' : undefined
+          }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <MobileSetContent />
         </div>
       </div>
     );
@@ -134,7 +140,7 @@ export function SetDetail({ set, setIndex, onClick }: SetDetailProps) {
             {set.isCompleted ? (
               <CheckSquare className="w-4 h-4" />
             ) : (
-              <Square className="w-4 h-4" />
+              <span className="w-4 h-4 border rounded" />
             )}
             <span>Série {setIndex + 1}</span>
             {set.type === SetType.REST_PAUSE && (
