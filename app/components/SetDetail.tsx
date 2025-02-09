@@ -36,28 +36,20 @@ export function SetDetail({ set, setIndex, onClick, isHistory = false }: SetDeta
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
 
-  // Funkce pro správné zobrazení váhy u drop série
-  const getSetWeight = () => {
-    if (set.type === SetType.DROP && set.dropSets && set.dropSets.length > 0) {
-      // Vždy bereme první váhu z drop série místo 0
-      return set.dropSets[0].weight;
+  // Funkce pro zobrazení textu série včetně všech detailů
+  const getSetDescription = () => {
+    const baseText = `${set.weight}kg × ${set.reps === 'failure' ? 'do selhání' : set.reps}`;
+    
+    if (set.type === SetType.REST_PAUSE && set.restPauseSeconds) {
+      return `${baseText} (rest-pause ${set.restPauseSeconds}s)`;
     }
-    return set.weight;
-  };
-
-  // Funkce pro zobrazení celého řetězce drop sérií
-  const getDropSetText = () => {
-    if (!set.dropSets || !set.dropSets.length) return '';
-
-    if (isHistory) {
-      // V historii zobrazíme celý řetězec na jednom řádku
-      return `${set.dropSets.map(drop => `${drop.weight}kg`).join(' → ')}`;
-    } else {
-      // V aktivním tréninku zobrazíme první váhu a pak šipky s dalšími vahami
-      const dropWeights = set.dropSets.slice(1);
-      return dropWeights.length > 0 ? 
-        ` → ${dropWeights.map(drop => `${drop.weight}kg`).join(' → ')}` : '';
+    
+    if (set.type === SetType.DROP && set.dropSets?.length) {
+      const dropSequence = set.dropSets.map(drop => `${drop.weight}kg`).join(' → ');
+      return `${dropSequence}`;
     }
+    
+    return baseText;
   };
 
   if (isMobileView) {
@@ -73,31 +65,33 @@ export function SetDetail({ set, setIndex, onClick, isHistory = false }: SetDeta
               <ArrowDown className="w-4 h-4 text-red-500" />
             )}
           </div>
-          <Button
-            variant={set.isCompleted ? "default" : "outline"}
-            size="sm"
-            onClick={onClick}
-          >
-            {set.isCompleted ? (
-              <CheckSquare className="w-4 h-4" />
-            ) : (
-              <span className="w-4 h-4 border rounded" />
-            )}
-          </Button>
+          {!isHistory && (
+            <Button
+              variant={set.isCompleted ? "default" : "outline"}
+              size="sm"
+              onClick={onClick}
+            >
+              {set.isCompleted ? (
+                <CheckSquare className="w-4 h-4" />
+              ) : (
+                <span className="w-4 h-4 border rounded" />
+              )}
+            </Button>
+          )}
         </div>
         <div className="text-sm text-muted-foreground">
-          {getSetWeight()}kg × {set.reps === 'failure' ? 'do selhání' : set.reps}
-          {set.type === SetType.REST_PAUSE && set.restPauseSeconds && (
-            <span className="ml-2">(pauza {set.restPauseSeconds}s)</span>
-          )}
-          {set.type === SetType.DROP && (
-            <span className="ml-2">{getDropSetText()}</span>
+          {getSetDescription()}
+          {isHistory && set.actualWeight && set.actualReps && (
+            <div className="mt-1 text-xs text-muted-foreground">
+              Skutečně: {set.actualWeight}kg × {set.actualReps}
+            </div>
           )}
         </div>
       </div>
     );
   }
 
+  // Desktop verze s tooltipem
   return (
     <TooltipProvider>
       <Tooltip>
@@ -123,13 +117,14 @@ export function SetDetail({ set, setIndex, onClick, isHistory = false }: SetDeta
           </Button>
         </TooltipTrigger>
         <TooltipContent>
-          <p>{getSetWeight()}kg × {set.reps === 'failure' ? 'do selhání' : set.reps}</p>
-          {set.type === SetType.REST_PAUSE && set.restPauseSeconds && (
-            <p>Pauza: {set.restPauseSeconds}s</p>
-          )}
-          {set.type === SetType.DROP && (
-            <p>{getDropSetText()}</p>
-          )}
+          <div className="space-y-1">
+            <p>{getSetDescription()}</p>
+            {isHistory && set.actualWeight && set.actualReps && (
+              <p className="text-xs text-muted-foreground">
+                Skutečně: {set.actualWeight}kg × {set.actualReps}
+              </p>
+            )}
+          </div>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

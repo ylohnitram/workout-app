@@ -386,7 +386,6 @@ const completeSet = (exerciseIndex: number, setIndex: number, performance?: {
     try {
       const token = await user.getIdToken();
       
-      // Vytvoříme log dokončeného tréninku
       const logResponse = await fetch('/api/workout-logs', {
         method: 'POST',
         headers: {
@@ -403,16 +402,36 @@ const completeSet = (exerciseIndex: number, setIndex: number, performance?: {
             isSystem: exercise.isSystem,
             name: exercise.name,
             sets: exercise.sets.map(set => {
-              // Pro drop sety použijeme první váhu z dropSets jako hlavní váhu
-              const weight = set.type === SetType.DROP && set.dropSets?.length 
-                ? set.dropSets[0].weight 
-                : set.weight;
-                
-              return {
-                ...set,
-                weight,
-                completedAt: set.completedAt || new Date()
+              // Základní data série
+              const baseSet = {
+                type: set.type,
+                weight: set.type === SetType.DROP && set.dropSets?.length 
+                  ? set.dropSets[0].weight 
+                  : set.weight,
+                reps: set.reps,
+                isCompleted: set.isCompleted,
+                completedAt: set.completedAt || new Date(),
+                actualWeight: set.actualWeight,
+                actualReps: set.actualReps
               };
+
+              // Přidáme rest-pause čas pouze pokud je to rest-pause série
+              if (set.type === SetType.REST_PAUSE) {
+                return {
+                  ...baseSet,
+                  restPauseSeconds: set.restPauseSeconds
+                };
+              }
+
+              // Přidáme dropSets pouze pokud je to drop série
+              if (set.type === SetType.DROP && set.dropSets?.length) {
+                return {
+                  ...baseSet,
+                  dropSets: set.dropSets
+                };
+              }
+
+              return baseSet;
             }),
             progress: exercise.progress
           }))
@@ -424,9 +443,7 @@ const completeSet = (exerciseIndex: number, setIndex: number, performance?: {
         throw new Error(errorData.error || 'Nepodařilo se uložit záznam tréninku');
       }
 
-      // Vyčistíme localStorage
       workoutStorage.clear();
-
       setActiveWorkout(null);
       setWorkoutTimer(0);
 
