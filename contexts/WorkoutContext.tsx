@@ -77,7 +77,6 @@ interface WorkoutContextType {
 }
 
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
-
 export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
@@ -206,7 +205,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user]);
 
-  const addWorkout = async (workout: Workout) => {
+const addWorkout = async (workout: Workout) => {
     if (!user) return;
     
     if (!workout.name || workout.name === WORKOUT_DEFAULTS.DEFAULT) {
@@ -336,7 +335,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const completeSet = (exerciseIndex: number, setIndex: number, performance?: {
+const completeSet = (exerciseIndex: number, setIndex: number, performance?: {
     weight?: number;
     reps?: number;
   }) => {
@@ -403,10 +402,18 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
             exerciseId: exercise.exerciseId,
             isSystem: exercise.isSystem,
             name: exercise.name,
-            sets: exercise.sets.map(set => ({
-              ...set,
-              completedAt: set.completedAt || new Date()
-            })),
+            sets: exercise.sets.map(set => {
+              // Pro drop sety použijeme první váhu z dropSets jako hlavní váhu
+              const weight = set.type === SetType.DROP && set.dropSets?.length 
+                ? set.dropSets[0].weight 
+                : set.weight;
+                
+              return {
+                ...set,
+                weight,
+                completedAt: set.completedAt || new Date()
+              };
+            }),
             progress: exercise.progress
           }))
         })
