@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { CheckSquare, AlertTriangle, ArrowDown, XIcon } from "lucide-react"
 import {
@@ -8,6 +8,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { SetType } from '@/types/exercise'
+import { useSpring, animated } from '@react-spring/web'
+import { useDrag } from '@use-gesture/react'
 
 interface SetDetailProps {
   set: {
@@ -27,10 +29,6 @@ interface SetDetailProps {
 
 export function SetDetail({ set, setIndex, onClick }: SetDetailProps) {
   const [isMobileView, setIsMobileView] = useState(false);
-  const [swipeX, setSwipeX] = useState(0);
-  const [startX, setStartX] = useState(0);
-  const cardRef = useRef<HTMLDivElement>(null);
-  const SWIPE_THRESHOLD = 100;
 
   useEffect(() => {
     const checkIfMobile = () => setIsMobileView(window.innerWidth < 640);
@@ -39,37 +37,40 @@ export function SetDetail({ set, setIndex, onClick }: SetDetailProps) {
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setStartX(e.touches[0].clientX);
-  };
+  const [{ x, rotate }, api] = useSpring(() => ({
+    x: 0,
+    rotate: 0,
+    config: { tension: 300, friction: 20 }
+  }));
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!cardRef.current) return;
-    const currentX = e.touches[0].clientX;
-    const diff = currentX - startX;
-    setSwipeX(diff);
-  };
-
-  const handleTouchEnd = () => {
-    if (Math.abs(swipeX) > SWIPE_THRESHOLD) {
-      // Pokud je swipe dostatečně dlouhý, provedeme akci
-      onClick();
+  const bind = useDrag(({ active, movement: [mx], direction: [xDir], cancel }) => {
+    // Pokud je swipe dost dlouhý, provedeme akci
+    if (!active && Math.abs(mx) > 100) {
+      const isRight = mx > 0;
+      // Dokončíme animaci do strany
+      api.start({
+        x: isRight ? 500 : -500,
+        rotate: isRight ? 45 : -45,
+        onResolve: () => {
+          onClick();
+          // Po dokončení akce vrátíme kartu do původní pozice
+          api.start({ x: 0, rotate: 0 });
+        }
+      });
+    } else {
+      // Jinak animujeme podle pohybu prstu
+      api.start({
+        x: active ? mx : 0,
+        rotate: active ? mx / 20 : 0,
+        immediate: active
+      });
     }
-    // Vždy vrátíme kartu na původní pozici
-    setSwipeX(0);
-  };
-
-  const getSwipeStyles = () => {
-    if (!swipeX) return {};
-    
-    const rotate = swipeX * 0.1; // Rotace karty během swipe
-    const opacity = Math.min(Math.abs(swipeX) / SWIPE_THRESHOLD, 1);
-    
-    return {
-      transform: `translateX(${swipeX}px) rotate(${rotate}deg)`,
-      transition: swipeX === 0 ? 'transform 0.3s ease-out' : undefined,
-    };
-  };
+  }, {
+    from: () => [x.get(), 0],
+    filterTaps: true,
+    bounds: { left: -200, right: 200 },
+    rubberband: true
+  });
 
   const MobileSetContent = () => (
     <div className="flex items-center justify-between w-full">
@@ -99,42 +100,57 @@ export function SetDetail({ set, setIndex, onClick }: SetDetailProps) {
   );
 
   if (isMobileView) {
-    const swipeDirection = swipeX > 0 ? 'right' : swipeX < 0 ? 'left' : null;
-    const swipeOpacity = Math.min(Math.abs(swipeX) / SWIPE_THRESHOLD, 1);
+    const isSwipingRight = x.to(value => value > 0);
+    const swipeProgress = x.to(value => Math.min(Math.abs(value) / 100, 1));
 
     return (
-      <div className="relative mb-4 touch-none">
-        {/* Pozadí pro vizuální feedback */}
-        <div 
-          className={`absolute inset-0 rounded-lg flex items-center justify-center
-            ${swipeDirection === 'right' ? 'bg-green-100' : 'bg-red-100'}`}
-          style={{ opacity: swipeOpacity }}
+      <div className="relative mb-4 touch-none h-24">
+        {/* Pozadí pro feedback */}
+        <animated.div
+          className="absolute inset-0 rounded-lg flex items-center justify-center overflow-hidden"
+          style={{
+            opacity: swipeProgress,
+            backgroundColor: isSwipingRight.to(right => 
+              right ? 'rgb(220, 252, 231)' : 'rgb(254, 226, 226)'
+            )
+          }}
         >
-          {swipeDirection === 'right' ? (
-            <CheckSquare className="w-8 h-8 text-green-600" style={{ opacity: swipeOpacity }} />
-          ) : (
-            <XIcon className="w-8 h-8 text-red-600" style={{ opacity: swipeOpacity }} />
-          )}
-        </div>
+          <animated.div
+            style={{
+              opacity: swipeProgress,
+              scale: swipeProgress.to(p => 0.8 + p * 0.2),
+              color: isSwipingRight.to(right => 
+                right ? 'rgb(22, 163, 74)' : 'rgb(220, 38, 38)'
+              )
+            }}
+          >
+            {isSwipingRight.to(right => 
+              right ? <CheckSquare className="w-8 h-8" /> : <XIcon className="w-8 h-8" />
+            )}
+          </animated.div>
+        </animated.div>
 
         {/* Hlavní karta */}
-        <div
-          ref={cardRef}
+        <animated.div
+          {...bind()}
+          style={{
+            x,
+            rotate,
+            touchAction: 'none'
+          }}
           className={`
-            p-4 rounded-lg border bg-background relative
+            absolute inset-0 p-4 rounded-lg border bg-background
             ${set.isCompleted ? 'border-primary' : 'border-border'}
+            cursor-grab active:cursor-grabbing
           `}
-          style={getSwipeStyles()}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
         >
           <MobileSetContent />
-        </div>
+        </animated.div>
       </div>
     );
   }
 
+  // Desktop verze zůstává stejná...
   return (
     <TooltipProvider>
       <Tooltip>
