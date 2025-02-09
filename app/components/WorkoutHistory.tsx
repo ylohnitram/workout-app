@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
@@ -7,6 +5,7 @@ import { format } from "date-fns"
 import { cs } from "date-fns/locale"
 import { Loader2 } from "lucide-react"
 import { IWorkoutLog } from "@/models/workoutLog"
+import { SetDetail } from './SetDetail'
 
 function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600)
@@ -97,13 +96,19 @@ export default function WorkoutHistory() {
               </div>
 
               <div className="space-y-2">
-                {log.exercises.map((exercise, index) => (
-                  <div key={index} className="text-sm">
-                    <div className="flex justify-between">
-                      <span>{exercise.name}</span>
-                      <span className="text-muted-foreground">
-                        {exercise.sets.filter(s => s.isCompleted).length}/{exercise.sets.length} sérií
-                      </span>
+                {log.exercises.map((exercise, exerciseIndex) => (
+                  <div key={exerciseIndex} className="text-sm">
+                    <div className="font-medium mb-1">{exercise.name}</div>
+                    <div className="space-y-1">
+                      {exercise.sets.map((set, setIndex) => (
+                        <SetDetail
+                          key={setIndex}
+                          set={set}
+                          setIndex={setIndex}
+                          onClick={() => {}}
+                          isHistory={true}
+                        />
+                      ))}
                     </div>
                   </div>
                 ))}
