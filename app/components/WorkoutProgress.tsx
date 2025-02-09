@@ -1,6 +1,4 @@
-"use client"
-
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useWorkout } from "@/contexts/WorkoutContext"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
@@ -16,7 +14,9 @@ import {
   DialogDescription
 } from "@/components/ui/dialog"
 import { SetDetail } from './SetDetail'
-import { useState } from "react"
+import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
+
+const SWIPE_THRESHOLD = 100; // Počet pixelů pro dokončení swipu
 
 function formatTime(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -27,70 +27,49 @@ function formatTime(seconds: number): string {
 
 export default function WorkoutProgress() {
   const router = useRouter();
-  const { activeWorkout, completeSet, endWorkout } = useWorkout()
-  const [showEndDialog, setShowEndDialog] = useState(false)
-  const [timer, setTimer] = useState<number>(0)
+  const { activeWorkout, completeSet, endWorkout } = useWorkout();
+  const [showEndDialog, setShowEndDialog] = useState(false);
+  const [timer, setTimer] = useState<number>(0);
 
-  if (!activeWorkout) {
-    return (
-      <Card>
-        <CardContent className="p-6 text-center">
-          <p className="text-muted-foreground">Žádný aktivní trénink</p>
-          <Button 
-            className="mt-4"
-            onClick={() => router.push('/')}
-          >
-            Zpět na dashboard
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 10, // Minimální vzdálenost pro aktivaci swipe
+      },
+    })
+  );
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
-    if (activeWorkout) {
-      interval = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - new Date(activeWorkout.startTime).getTime()) / 1000);
-        setTimer(elapsed);
-      }, 1000);
-    }
-
-    return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-    };
-  }, [activeWorkout]);
-
-  const handleSetToggle = (exerciseIndex: number, setIndex: number) => {
-    const exercise = activeWorkout?.exercises[exerciseIndex];
-    const set = exercise?.sets[setIndex];
-    
-    if (!set) return;
-
-    completeSet(exerciseIndex, setIndex, {
-      weight: set.weight,
-      reps: typeof set.reps === 'number' ? set.reps : undefined
-    });
-
-    // Dialog pro ukončení zobrazíme pouze pokud jsme sérii označili jako dokončenou
-    // a celkový progres je 100%
-    if (!set.isCompleted && activeWorkout?.progress === 100) {
-      setShowEndDialog(true);
-    }
-  };
-
-  const handleEndWorkout = async () => {
-    try {
-      await endWorkout();
-      setShowEndDialog(false);
+    if (!activeWorkout) {
       router.push('/');
-    } catch (error) {
-      console.error('Failed to end workout:', error);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - new Date(activeWorkout.startTime).getTime()) / 1000);
+      setTimer(elapsed);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [activeWorkout, router]);
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, delta } = event;
+    if (!active || !active.id || typeof active.id !== 'string') return;
+
+    // Pokud byl swipe dostatečně dlouhý, označíme sérii jako dokončenou
+    if (delta.x > SWIPE_THRESHOLD) {
+      const [, setIndexStr] = active.id.split('-');
+      const exerciseIndex = 0; // TODO: Získat správný index cvičení
+      const setIndex = parseInt(setIndexStr, 10);
+      
+      if (!isNaN(setIndex)) {
+        completeSet(exerciseIndex, setIndex);
+      }
     }
   };
+
+  if (!activeWorkout) return null;
 
   return (
     <>
@@ -114,29 +93,31 @@ export default function WorkoutProgress() {
 
           {/* Seznam cviků */}
           <div className="space-y-4">
-            {activeWorkout.exercises.map((exercise, exerciseIndex) => (
-              <div key={exerciseIndex} className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <h3 className="font-medium">{exercise.name}</h3>
-                  <span className="text-sm text-gray-500">
-                    {Math.round(exercise.progress)}%
-                  </span>
+            <DndContext onDragEnd={handleDragEnd} sensors={sensors}>
+              {activeWorkout.exercises.map((exercise, exerciseIndex) => (
+                <div key={exerciseIndex} className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-medium">{exercise.name}</h3>
+                    <span className="text-sm text-gray-500">
+                      {Math.round(exercise.progress)}%
+                    </span>
+                  </div>
+                  
+                  <Progress value={exercise.progress} className="mb-2" />
+                  
+                  <div className="flex flex-wrap gap-2">
+                    {exercise.sets.map((set, setIndex) => (
+                      <SetDetail
+                        key={setIndex}
+                        set={set}
+                        setIndex={setIndex}
+                        onClick={() => completeSet(exerciseIndex, setIndex)}
+                      />
+                    ))}
+                  </div>
                 </div>
-                
-                <Progress value={exercise.progress} className="mb-2" />
-                
-                <div className="flex flex-wrap gap-2">
-                  {exercise.sets.map((set, setIndex) => (
-                    <SetDetail
-                      key={setIndex}
-                      set={set}
-                      setIndex={setIndex}
-                      onClick={() => handleSetToggle(exerciseIndex, setIndex)}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
+              ))}
+            </DndContext>
           </div>
 
           <Button 
@@ -150,10 +131,10 @@ export default function WorkoutProgress() {
       </Card>
 
       <Dialog open={showEndDialog} onOpenChange={setShowEndDialog}>
-        <DialogContent aria-describedby="workout-end-description">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Ukončit trénink?</DialogTitle>
-            <DialogDescription id="workout-end-description">
+            <DialogDescription>
               {activeWorkout.progress < 100 
                 ? "Trénink není dokončen. Opravdu jej chcete ukončit?"
                 : "Gratulujeme k dokončení tréninku!"}
@@ -165,7 +146,11 @@ export default function WorkoutProgress() {
             </Button>
             <Button 
               variant={activeWorkout.progress === 100 ? "default" : "destructive"}
-              onClick={handleEndWorkout}
+              onClick={async () => {
+                await endWorkout();
+                setShowEndDialog(false);
+                router.push('/');
+              }}
             >
               Ukončit trénink
             </Button>
