@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { CheckSquare, AlertTriangle, ArrowDown } from "lucide-react"
+import { CheckSquare, AlertTriangle, ArrowDown, ChevronRight, XIcon } from "lucide-react"
 import {
   Tooltip,
   TooltipContent,
@@ -86,26 +86,25 @@ export function SetDetail({ set, setIndex, onClick }: SetDetailProps) {
           )}
         </div>
       </div>
-      <div className="flex items-center">
-        {set.isCompleted && <CheckSquare className="w-5 h-5 text-primary" />}
-      </div>
     </div>
   );
 
   if (isMobileView) {
     return (
-      <div className="relative mb-2 overflow-hidden">
-        {/* Zelené pozadí pro indikaci swipe */}
-        <div 
-          className="absolute inset-0 bg-green-100 flex items-center justify-end pr-4"
-          style={{
-            opacity: swipeX / 100,
-          }}
-        >
-          <CheckSquare className="w-6 h-6 text-green-600" />
+      <div className="relative mb-8">
+        {/* Indikátory pod kartou */}
+        <div className="absolute -bottom-8 left-0 right-0 flex justify-between px-6 text-sm">
+          <div className="flex items-center text-red-500">
+            <XIcon className="w-5 h-5 mr-1" />
+            <span>Nehotovo</span>
+          </div>
+          <div className="flex items-center text-green-500">
+            <span>Hotovo</span>
+            <CheckSquare className="w-5 h-5 ml-1" />
+          </div>
         </div>
         
-        {/* Hlavní obsah, který se posouvá */}
+        {/* Hlavní karta */}
         <div
           ref={elementRef}
           className={`
