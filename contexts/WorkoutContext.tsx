@@ -12,7 +12,6 @@ export const WORKOUT_DEFAULTS = {
   NO_WORKOUTS: 'no-workouts'
 } as const;
 
-// Basic types for exercise
 interface DropSet {
   weight: number;
   reps: number;
@@ -40,7 +39,6 @@ export interface Workout {
   date?: Date;
 }
 
-// Types for active workout tracking
 interface ActiveWorkoutSet extends ExerciseSet {
   isCompleted: boolean;
   actualWeight?: number;
@@ -209,7 +207,14 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // Okamžitě nastavíme data z localStorage
+      const localWorkout = workoutStorage.load();
+      if (localWorkout) {
+        setActiveWorkout(localWorkout);
+      }
+
       try {
+        // Pak ověříme DB
         const token = await user.getIdToken();
         const response = await fetch('/api/workout-progress', {
           headers: {
@@ -220,25 +225,46 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         if (response.ok) {
           const { data } = await response.json();
           if (data?.isActive) {
-            setActiveWorkout(data);
-            return;
+            setActiveWorkout(data);  // Přepíšeme localStorage data daty z DB
+            workoutStorage.save(data);  // Aktualizujeme localStorage
+          } else if (localWorkout) {
+            // Pokud máme lokální workout ale v DB není, uložíme ho do DB
+            await fetch('/api/workout-progress', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                ...localWorkout,
+                startTime: localWorkout.startTime,
+                isActive: true
+              })
+            });
           }
-        }
-
-        const localWorkout = workoutStorage.load();
-        if (localWorkout) {
-          setActiveWorkout(localWorkout);
         }
       } catch (error) {
         console.error('Error loading saved workout progress:', error);
-        const localWorkout = workoutStorage.load();
-        if (localWorkout) {
-          setActiveWorkout(localWorkout);
-        }
       }
     };
 
+    // Spustíme ihned při mount
     loadSavedProgress();
+
+    // A také při návratu na stránku
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadSavedProgress();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', loadSavedProgress);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', loadSavedProgress);
+    };
   }, [user]);
 
   // Load workouts on login
@@ -391,6 +417,21 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
 
     try {
       setActiveWorkout(newActiveWorkout);
+      workoutStorage.save(newActiveWorkout);
+
+      const token = await user.getIdToken();
+      await fetch('/api/workout-progress', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...newActiveWorkout,
+          isActive: true
+        })
+      });
+
       toast.success('Workout started');
     } catch (error) {
       console.error('Error starting workout:', error);
@@ -465,8 +506,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
               const baseSet = {
                 type: set.type,
                 weight: set.type === SetType.DROP && set.dropSets?.length 
-                  ? set.dropSets[0].weight 
-                  : set.weight,
+                  ? set.dropSets[0].weight : set.weight,
                 reps: set.reps,
                 isCompleted: set.isCompleted,
                 completedAt: set.completedAt || new Date(),
@@ -500,15 +540,16 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         throw new Error(errorData.error || 'Failed to save workout log');
       }
 
+      // Clean up active workout
       workoutStorage.clear();
       setActiveWorkout(null);
       setWorkoutTimer(0);
 
-      toast.success('Workout completed successfully', {
+      toast.success('Workout completed', {
         id: endToast,
         description: `Completed ${activeWorkout.exercises.reduce(
-          (total, ex) => total + ex.sets.filter(s => ss => s.isCompleted).length, 0
-          )} series | ${Math.round(activeWorkout.progress)}% of workout`
+          (total, ex) => total + ex.sets.filter(s => s.isCompleted).length, 0
+        )} sets | ${Math.round(activeWorkout.progress)}% of workout`
       });
     } catch (error) {
       console.error('Failed to end workout:', error);
