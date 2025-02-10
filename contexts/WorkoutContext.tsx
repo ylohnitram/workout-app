@@ -213,14 +213,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        // Nejdřív zkusíme localStorage
-        const localWorkout = workoutStorage.load();
-        if (localWorkout) {
-          setActiveWorkout(localWorkout);
-          return;
-        }
-
-        // Pokud není v localStorage, zkusíme databázi
+        // Zkusíme nejdřív DB, pak localStorage
         const token = await user.getIdToken();
         const response = await fetch('/api/workout-progress', {
           headers: {
@@ -232,20 +225,29 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
           const { data } = await response.json();
           if (data?.isActive) {
             setActiveWorkout(data);
-            // Uložíme i do localStorage pro rychlejší přístup příště
-            workoutStorage.save(data);
+            return;
           }
+        }
+
+        // Pokud není v DB, zkusíme localStorage
+        const localWorkout = workoutStorage.load();
+        if (localWorkout) {
+          setActiveWorkout(localWorkout);
         }
       } catch (error) {
         console.error('Error loading saved workout progress:', error);
-        toast.error('Nepodařilo se načíst uložený průběh tréninku');
+        // Při chybě zkusíme aspoň localStorage
+        const localWorkout = workoutStorage.load();
+        if (localWorkout) {
+          setActiveWorkout(localWorkout);
+        }
       }
     };
 
     loadSavedProgress();
-  }, [user]);
+  }, [user, router.pathname]);
 
-// Načtení workoutů při přihlášení
+  // Načtení workoutů při přihlášení
   useEffect(() => {
     let isMounted = true;
 
