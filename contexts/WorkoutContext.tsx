@@ -1,5 +1,6 @@
 "use client"
 
+import { useRouter } from "next/navigation";
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { SetType } from '@/types/exercise';
