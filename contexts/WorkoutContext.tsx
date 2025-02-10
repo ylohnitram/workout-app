@@ -1,6 +1,5 @@
 "use client"
 
-import { useRouter } from "next/navigation";
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { SetType } from '@/types/exercise';
@@ -13,7 +12,7 @@ export const WORKOUT_DEFAULTS = {
   NO_WORKOUTS: 'no-workouts'
 } as const;
 
-// Základní typy pro cvičení
+// Basic types for exercise
 interface DropSet {
   weight: number;
   reps: number;
@@ -41,7 +40,7 @@ export interface Workout {
   date?: Date;
 }
 
-// Typy pro aktivní tracking workoutu
+// Types for active workout tracking
 interface ActiveWorkoutSet extends ExerciseSet {
   isCompleted: boolean;
   actualWeight?: number;
@@ -125,11 +124,11 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Error fetching workouts:', error);
       setWorkouts([]);
-      toast.error('Nepodařilo se načíst tréninky');
+      toast.error('Failed to load workouts');
     }
   };
 
-  // Timer effect pro aktivní workout
+  // Timer effect for active workout
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
@@ -147,17 +146,16 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     };
   }, [activeWorkout]);
 
-  // Effect pro pravidelné ukládání do localStorage
+  // Effect for regular localStorage saving
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
     if (activeWorkout) {
-      // Okamžité první uložení
       workoutStorage.save(activeWorkout);
       
       interval = setInterval(() => {
         workoutStorage.save(activeWorkout);
-      }, 30000); // každých 30 sekund
+      }, 30000);
     }
 
     return () => {
@@ -167,12 +165,11 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     };
   }, [activeWorkout]);
 
-  // Effect pro pravidelné ukládání do MongoDB
+  // Effect for regular MongoDB saving
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
     if (activeWorkout && user) {
-      // Okamžité první uložení
       const saveToDb = async () => {
         try {
           const token = await user.getIdToken();
@@ -193,8 +190,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       };
 
       saveToDb();
-      
-      interval = setInterval(saveToDb, 60000); // každou minutu
+      interval = setInterval(saveToDb, 60000);
     }
 
     return () => {
@@ -204,7 +200,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     };
   }, [activeWorkout, user]);
 
-  // Načtení uloženého průběhu při startu
+  // Load saved progress at startup
   useEffect(() => {
     const loadSavedProgress = async () => {
       if (!user) {
@@ -214,7 +210,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        // Zkusíme nejdřív DB, pak localStorage
         const token = await user.getIdToken();
         const response = await fetch('/api/workout-progress', {
           headers: {
@@ -230,14 +225,12 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // Pokud není v DB, zkusíme localStorage
         const localWorkout = workoutStorage.load();
         if (localWorkout) {
           setActiveWorkout(localWorkout);
         }
       } catch (error) {
         console.error('Error loading saved workout progress:', error);
-        // Při chybě zkusíme aspoň localStorage
         const localWorkout = workoutStorage.load();
         if (localWorkout) {
           setActiveWorkout(localWorkout);
@@ -246,9 +239,9 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     };
 
     loadSavedProgress();
-  }, [user, router.pathname]);
+  }, [user]);
 
-  // Načtení workoutů při přihlášení
+  // Load workouts on login
   useEffect(() => {
     let isMounted = true;
 
@@ -257,8 +250,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         if (isMounted) {
           setWorkouts([]);
           setSelectedWorkout(null);
-          setActiveWorkout(null);  // Reset aktivního workoutu při odhlášení
-          workoutStorage.clear();   // Vyčištění localStorage při odhlášení
+          setActiveWorkout(null);
+          workoutStorage.clear();
         }
         return;
       }
@@ -305,10 +298,10 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
 
       const result = await response.json();
       setWorkouts(prevWorkouts => [...prevWorkouts, result]);
-      toast.success('Trénink byl vytvořen');
+      toast.success('Workout created');
     } catch (error) {
       console.error('Error adding workout:', error);
-      toast.error('Nepodařilo se vytvořit trénink');
+      toast.error('Failed to create workout');
     }
   };
 
@@ -341,10 +334,10 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         const updatedWorkout = await response.json();
         setSelectedWorkout(updatedWorkout);
       }
-      toast.success('Trénink byl aktualizován');
+      toast.success('Workout updated');
     } catch (error) {
       console.error('Error updating workout:', error);
-      toast.error('Nepodařilo se aktualizovat trénink');
+      toast.error('Failed to update workout');
     }
   };
 
@@ -369,10 +362,10 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       }
 
       setWorkouts(prevWorkouts => prevWorkouts.filter(w => w._id !== id));
-      toast.success('Trénink byl smazán');
+      toast.success('Workout deleted');
     } catch (error) {
       console.error('Error deleting workout:', error);
-      toast.error('Nepodařilo se smazat trénink');
+      toast.error('Failed to delete workout');
     }
   };
 
@@ -398,14 +391,14 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
 
     try {
       setActiveWorkout(newActiveWorkout);
-      toast.success('Trénink byl zahájen');
+      toast.success('Workout started');
     } catch (error) {
       console.error('Error starting workout:', error);
-      toast.error('Nepodařilo se zahájit trénink');
+      toast.error('Failed to start workout');
     }
   };
 
-const completeSet = (exerciseIndex: number, setIndex: number, performance?: {
+  const completeSet = (exerciseIndex: number, setIndex: number, performance?: {
     weight?: number;
     reps?: number;
   }) => {
@@ -448,7 +441,7 @@ const completeSet = (exerciseIndex: number, setIndex: number, performance?: {
   const endWorkout = async () => {
     if (!activeWorkout || !user) return;
 
-    const endToast = toast.loading('Ukončuji trénink...');
+    const endToast = toast.loading('Ending workout...');
 
     try {
       const token = await user.getIdToken();
@@ -504,25 +497,24 @@ const completeSet = (exerciseIndex: number, setIndex: number, performance?: {
 
       if (!logResponse.ok) {
         const errorData = await logResponse.json();
-        throw new Error(errorData.error || 'Nepodařilo se uložit záznam tréninku');
+        throw new Error(errorData.error || 'Failed to save workout log');
       }
 
-      // Vyčistíme localStorage a stav
       workoutStorage.clear();
       setActiveWorkout(null);
       setWorkoutTimer(0);
 
-      toast.success('Trénink byl úspěšně ukončen', {
+      toast.success('Workout completed successfully', {
         id: endToast,
-        description: `Dokončeno ${activeWorkout.exercises.reduce(
-          (total, ex) => total + ex.sets.filter(s => s.isCompleted).length, 0
-        )} sérií | ${Math.round(activeWorkout.progress)}% tréninku`
+        description: `Completed ${activeWorkout.exercises.reduce(
+          (total, ex) => total + ex.sets.filter(s => ss => s.isCompleted).length, 0
+          )} series | ${Math.round(activeWorkout.progress)}% of workout`
       });
     } catch (error) {
       console.error('Failed to end workout:', error);
-      toast.error('Chyba při ukončování tréninku', {
+      toast.error('Error ending workout', {
         id: endToast,
-        description: error instanceof Error ? error.message : 'Neznámá chyba'
+        description: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   };
