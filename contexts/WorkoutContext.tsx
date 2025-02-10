@@ -77,6 +77,7 @@ interface WorkoutContextType {
 }
 
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
+
 export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
@@ -127,39 +128,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Načtení uloženého průběhu při startu - NIKDY automaticky nespouštět
-  useEffect(() => {
-    const loadSavedProgress = async () => {
-      if (!user) {
-        setActiveWorkout(null);
-        workoutStorage.clear();
-        return;
-      }
-
-      try {
-        // Pouze kontrolujeme, zda existuje uložený průběh, ale NENASTAVUJEME ho automaticky
-        const localWorkout = workoutStorage.load();
-        if (localWorkout) {
-          console.log('Found saved workout, but not auto-starting it');
-          workoutStorage.clear(); // Vyčistíme localStorage
-        }
-
-        // Vyčistíme případný aktivní trénink v MongoDB
-        const token = await user.getIdToken();
-        await fetch('/api/workout-progress', {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-      } catch (error) {
-        console.error('Error checking saved workout progress:', error);
-      }
-    };
-
-    loadSavedProgress();
-  }, [user]);
-
   // Timer effect pro aktivní workout
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -178,7 +146,106 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     };
   }, [activeWorkout]);
 
-  // Načtení workoutů při přihlášení
+  // Effect pro pravidelné ukládání do localStorage
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (activeWorkout) {
+      // Okamžité první uložení
+      workoutStorage.save(activeWorkout);
+      
+      interval = setInterval(() => {
+        workoutStorage.save(activeWorkout);
+      }, 30000); // každých 30 sekund
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [activeWorkout]);
+
+  // Effect pro pravidelné ukládání do MongoDB
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (activeWorkout && user) {
+      // Okamžité první uložení
+      const saveToDb = async () => {
+        try {
+          const token = await user.getIdToken();
+          await fetch('/api/workout-progress', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              ...activeWorkout,
+              lastSaveTime: new Date()
+            })
+          });
+        } catch (error) {
+          console.error('Failed to save workout progress:', error);
+        }
+      };
+
+      saveToDb();
+      
+      interval = setInterval(saveToDb, 60000); // každou minutu
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [activeWorkout, user]);
+
+  // Načtení uloženého průběhu při startu
+  useEffect(() => {
+    const loadSavedProgress = async () => {
+      if (!user) {
+        setActiveWorkout(null);
+        workoutStorage.clear();
+        return;
+      }
+
+      try {
+        // Nejdřív zkusíme localStorage
+        const localWorkout = workoutStorage.load();
+        if (localWorkout) {
+          setActiveWorkout(localWorkout);
+          return;
+        }
+
+        // Pokud není v localStorage, zkusíme databázi
+        const token = await user.getIdToken();
+        const response = await fetch('/api/workout-progress', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const { data } = await response.json();
+          if (data?.isActive) {
+            setActiveWorkout(data);
+            // Uložíme i do localStorage pro rychlejší přístup příště
+            workoutStorage.save(data);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading saved workout progress:', error);
+        toast.error('Nepodařilo se načíst uložený průběh tréninku');
+      }
+    };
+
+    loadSavedProgress();
+  }, [user]);
+
+// Načtení workoutů při přihlášení
   useEffect(() => {
     let isMounted = true;
 
@@ -205,7 +272,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user]);
 
-const addWorkout = async (workout: Workout) => {
+  const addWorkout = async (workout: Workout) => {
     if (!user) return;
     
     if (!workout.name || workout.name === WORKOUT_DEFAULTS.DEFAULT) {
@@ -350,12 +417,11 @@ const completeSet = (exerciseIndex: number, setIndex: number, performance?: {
       if (!exercise) return prev;
 
       const currentSet = exercise.sets[setIndex];
-      const isCompleted = !currentSet.isCompleted; // Toggle stavu
+      const isCompleted = !currentSet.isCompleted;
 
       exercise.sets[setIndex] = {
         ...currentSet,
         isCompleted,
-        // Resetujeme actual hodnoty pokud sérii odznačujeme
         actualWeight: isCompleted ? (performance?.weight ?? currentSet.weight) : undefined,
         actualReps: isCompleted ? (performance?.reps ?? (typeof currentSet.reps === 'number' ? currentSet.reps : undefined)) : undefined,
         completedAt: isCompleted ? new Date() : undefined
@@ -368,13 +434,11 @@ const completeSet = (exerciseIndex: number, setIndex: number, performance?: {
       const totalCompletedSets = newExercises.reduce((total, ex) => 
         total + ex.sets.filter(s => s.isCompleted).length, 0);
       
-      const newWorkout = {
+      return {
         ...prev,
         exercises: newExercises,
         progress: (totalCompletedSets / totalSets) * 100
       };
-
-      return newWorkout;
     });
   };
 
@@ -402,7 +466,6 @@ const completeSet = (exerciseIndex: number, setIndex: number, performance?: {
             isSystem: exercise.isSystem,
             name: exercise.name,
             sets: exercise.sets.map(set => {
-              // Základní data série
               const baseSet = {
                 type: set.type,
                 weight: set.type === SetType.DROP && set.dropSets?.length 
@@ -415,7 +478,6 @@ const completeSet = (exerciseIndex: number, setIndex: number, performance?: {
                 actualReps: set.actualReps
               };
 
-              // Přidáme rest-pause čas pouze pokud je to rest-pause série
               if (set.type === SetType.REST_PAUSE) {
                 return {
                   ...baseSet,
@@ -423,7 +485,6 @@ const completeSet = (exerciseIndex: number, setIndex: number, performance?: {
                 };
               }
 
-              // Přidáme dropSets pouze pokud je to drop série
               if (set.type === SetType.DROP && set.dropSets?.length) {
                 return {
                   ...baseSet,
@@ -443,6 +504,7 @@ const completeSet = (exerciseIndex: number, setIndex: number, performance?: {
         throw new Error(errorData.error || 'Nepodařilo se uložit záznam tréninku');
       }
 
+      // Vyčistíme localStorage a stav
       workoutStorage.clear();
       setActiveWorkout(null);
       setWorkoutTimer(0);

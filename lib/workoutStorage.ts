@@ -1,19 +1,21 @@
-import { IWorkoutProgress } from '@/models/workoutProgress';
+import { ActiveWorkout } from '@/contexts/WorkoutContext';
 
 const STORAGE_KEY = 'activeWorkout';
 const STORAGE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hodin
 
-interface StoredWorkout extends IWorkoutProgress {
+interface StoredWorkout extends ActiveWorkout {
   timestamp: number;
+  version: number;
 }
 
 export const workoutStorage = {
   // Uložení průběhu tréninku do localStorage
-  save: (workout: IWorkoutProgress) => {
+  save: (workout: ActiveWorkout) => {
     try {
       const data: StoredWorkout = {
         ...workout,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        version: 1  // Verze pro kontrolu konzistence
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       return true;
@@ -24,7 +26,7 @@ export const workoutStorage = {
   },
 
   // Načtení průběhu tréninku z localStorage
-  load: (): IWorkoutProgress | null => {
+  load: (): ActiveWorkout | null => {
     try {
       const data = localStorage.getItem(STORAGE_KEY);
       if (!data) return null;
@@ -38,10 +40,9 @@ export const workoutStorage = {
       }
 
       // Převedeme timestamp zpět na Date objekty
-      const workout: IWorkoutProgress = {
+      const workout: ActiveWorkout = {
         ...stored,
         startTime: new Date(stored.startTime),
-        lastSaveTime: new Date(stored.lastSaveTime),
         exercises: stored.exercises.map(exercise => ({
           ...exercise,
           sets: exercise.sets.map(set => ({
@@ -76,6 +77,7 @@ export const workoutStorage = {
       if (!data) return false;
 
       const stored: StoredWorkout = JSON.parse(data);
+      
       // Kontrola expirace
       if (Date.now() - stored.timestamp > STORAGE_EXPIRY) {
         localStorage.removeItem(STORAGE_KEY);
@@ -88,29 +90,3 @@ export const workoutStorage = {
     }
   }
 };
-
-// Pomocná funkce pro převod aktivního workoutu na formát pro uložení
-export const formatWorkoutForStorage = (
-  userId: string,
-  workoutId: string,
-  startTime: Date,
-  exercises: any[],
-  progress: number
-): IWorkoutProgress => ({
-  userId,
-  workoutId,
-  startTime,
-  lastSaveTime: new Date(),
-  isActive: true,
-  exercises: exercises.map(exercise => ({
-    exerciseId: exercise.exerciseId,
-    isSystem: exercise.isSystem,
-    name: exercise.name,
-    sets: exercise.sets.map((set: any) => ({
-      ...set,
-      completedAt: set.isCompleted ? new Date() : undefined
-    })),
-    progress: exercise.progress
-  })),
-  progress
-});
